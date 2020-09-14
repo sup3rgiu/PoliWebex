@@ -94,7 +94,7 @@ async function downloadVideo(videoUrls, password, outputDirectory) {
     console.log('\nLaunching headless Chrome to perform the OpenID Connect dance...');
     const browser = await puppeteer.launch({
         // Switch to false if you need to login interactively
-        headless: false,
+        headless: true,
         args: ['--disable-dev-shm-usage', '--lang=it-IT']
     });
 
