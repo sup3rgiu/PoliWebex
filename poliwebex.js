@@ -18,7 +18,8 @@ const argv = yargs.options({
     s: { alias:'segmented', type: 'boolean', default:false, demandOption: false, describe: 'Download video in a segmented way. Could be (a lot) faster on powerful PC with good download speed' },
     o: { alias:'outputDirectory', type: 'string', default: 'videos' },
     k: { alias: 'noKeyring', type: 'boolean', default: false, demandOption: false, describe: 'Do not use system keyring'},
-	t: { alias: 'noToastNotification', type: 'boolean', default: false, demandOption: false, describe: 'Disable toast notification'}
+    t: { alias: 'noToastNotification', type: 'boolean', default: false, demandOption: false, describe: 'Disable toast notification'},
+    w: { alias: 'videoPwd', type: 'string', default: '', demandOption: false, describe: 'Video Password'}
 })
 .help('h')
 .alias('h', 'help')
@@ -88,7 +89,7 @@ function parseVideoUrls(videoUrls) {
 
 const notDownloaded = []; // take trace of not downloaded videos
 
-async function downloadVideo(videoUrls, password, outputDirectory) {
+async function downloadVideo(videoUrls, password, outputDirectory, videoPwd) {
 
     var credentials = await askForCredentials(password);
     console.log('\nLaunching headless Chrome to perform the OpenID Connect dance...');
@@ -119,7 +120,8 @@ async function downloadVideo(videoUrls, password, outputDirectory) {
             }
 
             var headers = {
-                'Cookie': cookie
+                'Cookie': cookie,
+                'accessPwd': videoPwd
             };
 
             var options = {
@@ -594,4 +596,4 @@ const videoUrls = parseVideoUrls(argv.videoUrls);
 console.info('Video URLs: %s', videoUrls);
 //console.info('Password: %s', argv.password);
 console.info('Output Directory: %s\n', argv.outputDirectory);
-downloadVideo(videoUrls, argv.password, argv.outputDirectory);
+downloadVideo(videoUrls, argv.password, argv.outputDirectory, argv.videoPwd);
