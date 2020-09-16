@@ -50,6 +50,8 @@ Options:
   -o, --outputDirectory                             [string] [default: "videos"]
   -k, --noKeyring            Do not use system keyring [boolean] [default: false]
   -t, --noToastNotification  Disable toast notification [boolean] [default: false]
+  -i, --timeout              Scale timeout by a factor X                [number]
+  -w, --videoPwd             Video Password               [string] [default: ""]
   -h, --help                 Show help                                 [boolean]
 ```
 
@@ -76,6 +78,16 @@ $ node poliwebex -p MYNEWPASSWORD -v "https://politecnicomilano.webex.com/webapp
 Download the video in a segmented way. Could be (a lot) faster on powerful PC with good download speed
 ```
 $ node poliwebex  -v "https://politecnicomilano.webex.com/webappng/sites/politecnicomilano/recording/play/VIDEO-1" -s
+```
+
+Download password-protected video
+```
+$ node poliwebex  -v "https://politecnicomilano.webex.com/webappng/sites/politecnicomilano/recording/play/VIDEO-1" -w PASSWORD
+```
+
+Scale timeout values by a factor X (integer or float value). Really useful for slow connections while performing login operations
+```
+$ node poliwebex  -v "https://politecnicomilano.webex.com/webappng/sites/politecnicomilano/recording/play/VIDEO-1" -i X
 ```
 
 Do not use system keyring to save the password:

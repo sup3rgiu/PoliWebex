@@ -19,6 +19,7 @@ const argv = yargs.options({
     o: { alias:'outputDirectory', type: 'string', default: 'videos' },
     k: { alias: 'noKeyring', type: 'boolean', default: false, demandOption: false, describe: 'Do not use system keyring'},
     t: { alias: 'noToastNotification', type: 'boolean', default: false, demandOption: false, describe: 'Disable toast notification'},
+    i: { alias: 'timeout', type: 'number', demandOption: false, describe: 'Scale timeout by a factor X'},
     w: { alias: 'videoPwd', type: 'string', default: '', demandOption: false, describe: 'Video Password'}
 })
 .help('h')
@@ -28,6 +29,8 @@ const argv = yargs.options({
 .example('node $0 -v "https://politecnicomilano.webex.com/recordingservice/sites/politecnicomilano/recording/playback/8de59dbf0a0345c6b525ed45a2c50607" "https://politecnicomilano.webex.com/recordingservice/sites/politecnicomilano/recording/playback/9ce59ddr5a0345c6b525ed45a2c50607"\n', "Multiple videos download")
 .example('node $0 -v "https://politecnicomilano.webex.com/recordingservice/sites/politecnicomilano/recording/playback/8de59dbf0a0345c6b525ed45a2c50607" -o "C:\\Lessons\\Videos"\n', "Define output directory (absoulte o relative path)")
 .example('node $0 -v "https://politecnicomilano.webex.com/recordingservice/sites/politecnicomilano/recording/playback/8de59dbf0a0345c6b525ed45a2c50607" -s\n', "Download video in a segmented way. Could be (a lot) faster on powerful PC with good download speed")
+.example('node $0 -v "https://politecnicomilano.webex.com/recordingservice/sites/politecnicomilano/recording/playback/8de59dbf0a0345c6b525ed45a2c50607" -w PASSWORD\n', "Download password-protected video")
+.example('node $0 -v "https://politecnicomilano.webex.com/recordingservice/sites/politecnicomilano/recording/playback/8de59dbf0a0345c6b525ed45a2c50607" -i 2\n', "Double timeout value")
 .example('node $0 -v "https://politecnicomilano.webex.com/recordingservice/sites/politecnicomilano/recording/playback/8de59dbf0a0345c6b525ed45a2c50607" -k\n', "Do not save the password into system keyring")
 .example('node $0 -v "https://politecnicomilano.webex.com/recordingservice/sites/politecnicomilano/recording/playback/8de59dbf0a0345c6b525ed45a2c50607" -t\n', "Disable system toast notification about finished download process")
 .argv;
@@ -57,6 +60,21 @@ function sanityChecks() {
     }
     if (argv.videoUrlsFile !== undefined)
         argv.videoUrls = argv.videoUrlsFile; // merge argument
+
+    if (argv.timeout !== undefined) {
+        if(isNaN(argv.timeout) || argv.timeout < 0) {
+            term.red("Incorrect timeout value. Insert a positive integer or float.\n");
+            process.exit();
+        } else {
+            if(argv.timeout > 10) {
+                term.red("This is a really big scale factor for the timeout value...\n");
+                process.exit();
+            } else {
+                timeout = argv.timeout;
+            }
+        }
+    }
+
 
     if (!fs.existsSync(argv.outputDirectory)) {
         if (path.isAbsolute(argv.outputDirectory) || argv.outputDirectory[0] == '~') console.log('Creating output directory: ' + argv.outputDirectory);
@@ -88,6 +106,7 @@ function parseVideoUrls(videoUrls) {
 }
 
 const notDownloaded = []; // take trace of not downloaded videos
+var timeout = 1;
 
 async function downloadVideo(videoUrls, password, outputDirectory, videoPwd) {
 
@@ -99,8 +118,12 @@ async function downloadVideo(videoUrls, password, outputDirectory, videoPwd) {
         args: ['--disable-dev-shm-usage', '--lang=it-IT']
     });
 
+    if (argv.timeout !== undefined) {
+        timeout = argv.timeout;
+    }
+
     var page = await login(credentials, browser);
-    await sleep(3000)
+    await sleep(3000*timeout)
     const cookie = await extractCookies(page)
     //console.log(cookie);
     console.log('Got required authentication cookies.');
@@ -138,8 +161,7 @@ async function downloadVideo(videoUrls, password, outputDirectory, videoPwd) {
         try {
             var obj = JSON.parse(response);
         } catch (e) {
-            errorMsg = '\nError downloading this video.\n'
-            term.red(errorMsg)
+            term.red('\nError downloading this video.\n')
             notDownloaded.push(videoUrl);
             continue;
         }
@@ -218,7 +240,7 @@ async function downloadVideo(videoUrls, password, outputDirectory, videoPwd) {
     term.green(`Done!\n`);
     if (argv.noToastNotification === false) {
         require('node-notifier').notify({
-            title: 'PoliDown',
+            title: 'PoliWebex',
             message: 'DONE! See logs on terminal.',
             appID: "https://nodejs.org/", // Such a smart assignment to avoid SnoreToast start menu link. Don't say to my mother.
         }, function(error, response) { /*console.log(response);*/ });
@@ -245,7 +267,7 @@ async function login(credentials, browser) {
 
     try {
         await page.waitForSelector('div[class="Message ErrorMessage"]', {
-            timeout: 1000
+            timeout: 1000*timeout
         });
         term.red('Bad credentials.\nIf you need to change the saved password, add the \'-p\' parameter\nTo change username/email, edit them in the config.json file');
         process.exit(401);
@@ -255,7 +277,7 @@ async function login(credentials, browser) {
 
     try {
         await page.waitForSelector('button[name="evn_continua"]', {
-            timeout: 1000
+            timeout: 1000*timeout
         }); // password is expiring
         await page.click('button[name="evn_continua"]');
     } catch (error) {
@@ -264,7 +286,7 @@ async function login(credentials, browser) {
 
     try {
         await page.waitForSelector('input[id="idBtn_Back"]', {
-            timeout: 2000
+            timeout: 2000*timeout
         });
         await page.click('input[id="idBtn_Back"]'); // clicca sul tasto "No" per rimanere connessi
     } catch (error) {
@@ -405,7 +427,7 @@ async function askForCredentials(password) {
         if (info.hasOwnProperty('codicePersona')) {
             codicePersona = info.codicePersona;
         } else {
-            codicePersona = await promptQuestion("Person code (codice persona) not saved. Please enter your person code, PoliDown will not ask for it next time: ");
+            codicePersona = await promptQuestion("Person code (codice persona) not saved. Please enter your person code, PoliWebex will not ask for it next time: ");
             info.codicePersona = codicePersona;
             changed = true;
         }
@@ -413,14 +435,14 @@ async function askForCredentials(password) {
         if (info.hasOwnProperty('email')) {
             email = info.email;
         } else {
-            email = await promptQuestion("Email not saved. Please enter your PoliMi email, in format \"name.surname@mail.polimi.it\", PoliDown will not ask for it next time: ");
+            email = await promptQuestion("Email not saved. Please enter your PoliMi email, in format \"name.surname@mail.polimi.it\", PoliWebex will not ask for it next time: ");
             info.email = email;
             changed = true;
         }
     } else {
-        codicePersona = await promptQuestion("Person code (codice persona) not saved. Please enter your person code, PoliDown will not ask for it next time: ");
+        codicePersona = await promptQuestion("Person code (codice persona) not saved. Please enter your person code, PoliWebex will not ask for it next time: ");
         info.codicePersona = codicePersona;
-        email = await promptQuestion("Email not saved. Please enter your PoliMi email, in format \"name.surname@mail.polimi.it\", PoliDown will not ask for it next time: ");
+        email = await promptQuestion("Email not saved. Please enter your PoliMi email, in format \"name.surname@mail.polimi.it\", PoliWebex will not ask for it next time: ");
         info.email = email;
 
         changed = true;
@@ -433,22 +455,22 @@ async function askForCredentials(password) {
 
     // handle password
     const keytar = require('keytar');
-    //keytar.deletePassword('PoliDown', username);
+    //keytar.deletePassword('PoliWebex', username);
     if (password === undefined) { // password not passed as argument
         var password = {};
         if (argv.noKeyring === false) {
             try {
-                await keytar.getPassword("PoliDown", info.codicePersona).then(function(result) {
+                await keytar.getPassword("PoliWebex", info.codicePersona).then(function(result) {
                     password = result;
                 });
                 if (password === null) { // no previous password saved
-                    password = await promptQuestion("Password not saved. Please enter your password, PoliDown will not ask for it next time: ");
-                    await keytar.setPassword("PoliDown", info.codicePersona, password);
+                    password = await promptQuestion("Password not saved. Please enter your password, PoliWebex will not ask for it next time: ");
+                    await keytar.setPassword("PoliWebex", info.codicePersona, password);
                 } else {
                     console.log("Reusing password saved in system's keychain!")
                 }
             } catch (e) {
-                console.log("X11 is not installed on this system. PoliDown can't use keytar to save the password.")
+                console.log("X11 is not installed on this system. PoliWebex can't use keytar to save the password.")
                 password = await promptQuestion("No problem, please manually enter your password: ");
             }
         } else {
@@ -457,7 +479,7 @@ async function askForCredentials(password) {
     } else {
         if (argv.noKeyring === false) {
             try {
-                await keytar.setPassword("PoliDown", info.codicePersona, password);
+                await keytar.setPassword("PoliWebex", info.codicePersona, password);
                 console.log("Your password has been saved. Next time, you can avoid entering it!");
             } catch (e) {
                 // X11 is missing. Can't use keytar
