@@ -1,7 +1,8 @@
 # PoliWebex
 
-If you are not familiar with terminal, you can use this browser extension to download WebEx videos directly from the webpage: https://github.com/jacopo-j/WebXDownloader
-If you need to download multiple videos at once and/or prefer a faster download through aria2c, go ahead with this project ;)
+If you are not familiar with terminal, you can use this browser extension to download WebEx videos directly from the webpage: https://github.com/jacopo-j/WebXDownloader    
+
+If you need to download multiple videos at once and/or prefer a faster download through aria2c, go ahead with this project 😉
 
 ## Saves WebEx videos uploaded by Politecnico di Milano.
 
