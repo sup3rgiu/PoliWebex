@@ -285,12 +285,12 @@ async function login(credentials, browser) {
     }
 
     try {
-        await page.waitForSelector('input[id="idBtn_Back"]', {
+        await page.waitForSelector('#dati_applicativi_autorizzazioniXSceltaMatricolaColl', {
             timeout: 2000*timeout
         });
-        await page.click('input[id="idBtn_Back"]'); // clicca sul tasto "No" per rimanere connessi
+        await page.click('#dati_applicativi_autorizzazioniXSceltaMatricolaColl > tbody > tr:nth-child(1) > td:nth-child(1) > a'); // clicca sulla prima matricola
     } catch (error) {
-        // bottone non apparso, ok...
+        // scelta della matricola non apparsa, ok...
     }
 
     var currentIndex = 0;
