@@ -18,7 +18,8 @@ Features:
 * [**ffmpeg**](https://www.ffmpeg.org/download.html): a recent version (year 2019 or above), in [`$PATH`](https://www.thewindowsclub.com/how-to-install-ffmpeg-on-windows-10).
 
 ## Windows Installation instructions
-(On others OS is pretty much the same)
+(On others OS is pretty much the same)\
+**N.B:** ffmpeg.zeranoe.com closed since Sep 18, 2020. If you are following the video tutorial, download ffmpeg from another source available on [ffmpeg site](https://www.ffmpeg.org/download.html) (nightly build is no more required)
 
 This tutorial comes from my other project [PoliDown](https://github.com/sup3rgiu/PoliDown). The installation process is the same, just use clone this repo (and not PoliDown repo) and write "poliwebex" where in the video appear "polidown"
 
