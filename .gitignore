@@ -104,3 +104,8 @@ dist
 
 # TernJS port file
 .tern-port
+
+package-lock.json
+
+# MacOS
+*.DS_Store
