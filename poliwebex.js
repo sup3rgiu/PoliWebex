@@ -420,7 +420,7 @@ async function askForCredentials(password) {
     var changed = false;
     var info = {}
 
-    if (fs.existsSync(path.join(__dirname, 'config.json'))) {
+    if (fs.existsSync('config.json')) {
         let rawdata = fs.readFileSync('config.json');
         info = JSON.parse(rawdata);
 

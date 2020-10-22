@@ -1,12 +1,12 @@
 {
-  "name": "polidown",
+  "name": "poliwebex",
   "repository": {
     "type": "git",
-    "url": "git://github.com/sup3rgiu/polidown.git"
+    "url": "git://github.com/sup3rgiu/poliwebex.git"
   },
   "version": "1.1.0",
-  "description": "Save Microsoft Stream videos uploaded by Politecnico di Milano.",
-  "main": "polidown.js",
+  "description": "Save Cisco WebEx videos uploaded by Politecnico di Milano.",
+  "main": "poliwebex.js",
   "keywords": [],
   "author": "sup3rgiu",
   "license": "MIT",
