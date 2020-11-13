@@ -130,22 +130,34 @@ async function downloadVideo(videoUrls, password, outputDirectory, videoPwd) {
     console.log("\nAt this point Chrome's job is done, shutting it down...");
     await browser.close(); // browser is no more required. Free up RAM!
 
+    var headers = {
+        'Cookie': cookie,
+        'accessPwd': videoPwd
+    };
+
     for (let videoUrl of videoUrls) {
         if (videoUrl == "") continue; // jump empty url
         term.green(`\nStart downloading video: ${videoUrl}\n`);
 
         try {
+
+            if(extractRCID(videoUrl) != null) { // check if the videoUrl is in the new format https://politecnicomilano.webex.com/politecnicomilano/ldr.php?RCID=15abe8b5bcf02a50a20b056cc2263211
+                var options = {
+                    url: videoUrl,
+                    headers: headers
+                };
+                var redirectUrl = await getRedirectUrl(options) // get videoUrl in the usual format. Needed to obtain the correct videoID , in order to use in the API
+                if(redirectUrl !== null) {
+                    videoUrl = redirectUrl;
+                }
+            }
+
             var videoID = extractVideoID(videoUrl);
             if (videoID === null) {
                 term.red('\nCan\'t find video ID. Going to the next one.\n');
                 notDownloaded.push(videoUrl);
                 continue;
             }
-
-            var headers = {
-                'Cookie': cookie,
-                'accessPwd': videoPwd
-            };
 
             var options = {
                 url: 'https://politecnicomilano.webex.com/webappng/api/v1/recordings/' + videoID + '/stream?siteurl=politecnicomilano',
@@ -523,6 +535,16 @@ function extractVideoID(videoUrl) {
         }
     }
     return null;
+}
+
+function extractRCID(videoUrl) {
+    var url = new URL(videoUrl);
+    return url.searchParams.get("RCID");
+}
+
+async function getRedirectUrl(options) {
+    var body = await doRequest(options);
+    return body.match(/location\.href='(.*?)';/)[1];
 }
 
 function promptResChoice(question, count) {
