@@ -375,13 +375,10 @@ async function segmentedDownload(params) {
             fs.writeFileSync(video_tmp_path, video_tmp);
 
             // download async. I'm Speed
-            var aria2cCmd = 'aria2c -i "' + video_full_path + '" -j 16 -x 16 -d "' + video_segments_path + '"';
+            var aria2cCmd = 'aria2c -i "' + video_full_path + '" -j 16 -x 16 -d "' + video_segments_path + '" -c'; // '-c' (continue param) -> to download missing segements if download is retried
             var result = execSync(aria2cCmd, {stdio: 'inherit'});
         } catch (e) {
-            term.yellow('\n\nOops! We lost some video fragment! Trying one more time...\n\n');
-            rmDir(video_segments_path);
-            fs.unlinkSync(video_tmp_path);
-            fs.unlinkSync(video_full_path);
+            term.yellow('\n\nOops! We lost some video fragment! Trying to retrieve them...\n\n');
             count++;
             continue;
         }
