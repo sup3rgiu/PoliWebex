@@ -530,6 +530,11 @@ function extractVideoID(videoUrl) {
         if (part.length == 32) {
             return part;
         }
+        else if (part.length > 32) {
+            var char32 = part.slice(0,32)
+            if (char32.match(/^[a-z0-9]+$/i)) // first 32 char are alphanumeric
+                return char32;
+        }
     }
     return null;
 }
