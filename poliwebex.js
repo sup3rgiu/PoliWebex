@@ -362,8 +362,8 @@ async function segmentedDownload(params) {
     }
 
     var baseUri = (params.src).substring(0, (params.src).lastIndexOf("/") + 1);
-    var video_full = await response.replace(new RegExp('merge', 'g'), baseUri + 'merge'); // local path to full remote url path
-    var video_tmp = await response.replace(new RegExp('merge', 'g'), 'video_segments/merge');
+    var video_full = await response.replace(new RegExp('(.*\.ts)', 'g'), baseUri + '$1'); // local path to full remote url path
+    var video_tmp = await response.replace(new RegExp('(.*\.ts)', 'g'), 'video_segments/$1');
     const video_full_path = path.join(full_tmp_dir, 'video_full.m3u8');
     const video_tmp_path = path.join(full_tmp_dir, 'video_tmp.m3u8');
     const video_segments_path = path.join(full_tmp_dir, 'video_segments');
