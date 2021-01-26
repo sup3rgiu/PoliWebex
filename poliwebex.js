@@ -8,32 +8,55 @@ const path = require("path");
 const yargs = require("yargs");
 const request = require('request');
 const notifier = require('node-notifier');
-var xml2js = require('xml2js');
-var URL = require('url').URL; // for node.js version <= 8
+const xml2js = require('xml2js');
+const URL = require('url').URL; // for node.js version <= 8
 
 const argv = yargs.options({
-    v: { alias:'videoUrls', type: 'array', demandOption: false },
-    f: { alias: 'videoUrlsFile', type: 'string', demandOption: false, describe: 'Path to txt file containing the URLs (one URL for each line)'},
-    p: { alias:'password', type: 'string', demandOption: false },
-    s: { alias:'segmented', type: 'boolean', default:false, demandOption: false, describe: 'Download video in a segmented way. Could be (a lot) faster on powerful PC with good download speed' },
-    o: { alias:'outputDirectory', type: 'string', default: 'videos' },
-    k: { alias: 'noKeyring', type: 'boolean', default: false, demandOption: false, describe: 'Do not use system keyring'},
-    t: { alias: 'noToastNotification', type: 'boolean', default: false, demandOption: false, describe: 'Disable toast notification'},
-    i: { alias: 'timeout', type: 'number', demandOption: false, describe: 'Scale timeout by a factor X'},
-    w: { alias: 'videoPwd', type: 'string', default: '', demandOption: false, describe: 'Video Password'}
+    v: {alias: 'videoUrls', type: 'array', demandOption: false},
+    f: {
+        alias: 'videoUrlsFile',
+        type: 'string',
+        demandOption: false,
+        describe: 'Path to txt file containing the URLs (one URL for each line)'
+    },
+    p: {alias: 'password', type: 'string', demandOption: false},
+    s: {
+        alias: 'segmented',
+        type: 'boolean',
+        default: false,
+        demandOption: false,
+        describe: 'Download video in a segmented way. Could be (a lot) faster on powerful PC with good download speed'
+    },
+    o: {alias: 'outputDirectory', type: 'string', default: 'videos'},
+    k: {
+        alias: 'noKeyring',
+        type: 'boolean',
+        default: false,
+        demandOption: false,
+        describe: 'Do not use system keyring'
+    },
+    t: {
+        alias: 'noToastNotification',
+        type: 'boolean',
+        default: false,
+        demandOption: false,
+        describe: 'Disable toast notification'
+    },
+    i: {alias: 'timeout', type: 'number', demandOption: false, describe: 'Scale timeout by a factor X'},
+    w: {alias: 'videoPwd', type: 'string', default: '', demandOption: false, describe: 'Video Password'}
 })
-.help('h')
-.alias('h', 'help')
-.example('node $0 -v "https://politecnicomilano.webex.com/recordingservice/sites/politecnicomilano/recording/playback/8de59dbf0a0345c6b525ed45a2c50607"\n', "Standard usage")
-.example('node $0 -f URLsList.txt\n', "Standard usage")
-.example('node $0 -v "https://politecnicomilano.webex.com/recordingservice/sites/politecnicomilano/recording/playback/8de59dbf0a0345c6b525ed45a2c50607" "https://politecnicomilano.webex.com/recordingservice/sites/politecnicomilano/recording/playback/9ce59ddr5a0345c6b525ed45a2c50607"\n', "Multiple videos download")
-.example('node $0 -v "https://politecnicomilano.webex.com/recordingservice/sites/politecnicomilano/recording/playback/8de59dbf0a0345c6b525ed45a2c50607" -o "C:\\Lessons\\Videos"\n', "Define output directory (absoulte o relative path)")
-.example('node $0 -v "https://politecnicomilano.webex.com/recordingservice/sites/politecnicomilano/recording/playback/8de59dbf0a0345c6b525ed45a2c50607" -s\n', "Download video in a segmented way. Could be (a lot) faster on powerful PC with good download speed")
-.example('node $0 -v "https://politecnicomilano.webex.com/recordingservice/sites/politecnicomilano/recording/playback/8de59dbf0a0345c6b525ed45a2c50607" -w PASSWORD\n', "Download password-protected video")
-.example('node $0 -v "https://politecnicomilano.webex.com/recordingservice/sites/politecnicomilano/recording/playback/8de59dbf0a0345c6b525ed45a2c50607" -i 2\n', "Double timeout value")
-.example('node $0 -v "https://politecnicomilano.webex.com/recordingservice/sites/politecnicomilano/recording/playback/8de59dbf0a0345c6b525ed45a2c50607" -k\n', "Do not save the password into system keyring")
-.example('node $0 -v "https://politecnicomilano.webex.com/recordingservice/sites/politecnicomilano/recording/playback/8de59dbf0a0345c6b525ed45a2c50607" -t\n', "Disable system toast notification about finished download process")
-.argv;
+    .help('h')
+    .alias('h', 'help')
+    .example('node $0 -v "https://politecnicomilano.webex.com/recordingservice/sites/politecnicomilano/recording/playback/8de59dbf0a0345c6b525ed45a2c50607"\n', "Standard usage")
+    .example('node $0 -f URLsList.txt\n', "Standard usage")
+    .example('node $0 -v "https://politecnicomilano.webex.com/recordingservice/sites/politecnicomilano/recording/playback/8de59dbf0a0345c6b525ed45a2c50607" "https://politecnicomilano.webex.com/recordingservice/sites/politecnicomilano/recording/playback/9ce59ddr5a0345c6b525ed45a2c50607"\n', "Multiple videos download")
+    .example('node $0 -v "https://politecnicomilano.webex.com/recordingservice/sites/politecnicomilano/recording/playback/8de59dbf0a0345c6b525ed45a2c50607" -o "C:\\Lessons\\Videos"\n', "Define output directory (absoulte o relative path)")
+    .example('node $0 -v "https://politecnicomilano.webex.com/recordingservice/sites/politecnicomilano/recording/playback/8de59dbf0a0345c6b525ed45a2c50607" -s\n', "Download video in a segmented way. Could be (a lot) faster on powerful PC with good download speed")
+    .example('node $0 -v "https://politecnicomilano.webex.com/recordingservice/sites/politecnicomilano/recording/playback/8de59dbf0a0345c6b525ed45a2c50607" -w PASSWORD\n', "Download password-protected video")
+    .example('node $0 -v "https://politecnicomilano.webex.com/recordingservice/sites/politecnicomilano/recording/playback/8de59dbf0a0345c6b525ed45a2c50607" -i 2\n', "Double timeout value")
+    .example('node $0 -v "https://politecnicomilano.webex.com/recordingservice/sites/politecnicomilano/recording/playback/8de59dbf0a0345c6b525ed45a2c50607" -k\n', "Do not save the password into system keyring")
+    .example('node $0 -v "https://politecnicomilano.webex.com/recordingservice/sites/politecnicomilano/recording/playback/8de59dbf0a0345c6b525ed45a2c50607" -t\n', "Disable system toast notification about finished download process")
+    .argv;
 
 function sanityChecks() {
     try {
@@ -62,11 +85,11 @@ function sanityChecks() {
         argv.videoUrls = argv.videoUrlsFile; // merge argument
 
     if (argv.timeout !== undefined) {
-        if(isNaN(argv.timeout) || argv.timeout < 0) {
+        if (isNaN(argv.timeout) || argv.timeout < 0) {
             term.red("Incorrect timeout value. Insert a positive integer or float.\n");
             process.exit();
         } else {
-            if(argv.timeout > 10) {
+            if (argv.timeout > 10) {
                 term.red("This is a really big scale factor for the timeout value...\n");
                 process.exit();
             } else {
@@ -110,7 +133,7 @@ var timeout = 1;
 
 async function downloadVideo(videoUrls, password, outputDirectory, videoPwd) {
 
-    var credentials = await askForCredentials(password);
+    const credentials = await askForCredentials(password);
     console.log('\nLaunching headless Chrome to perform the OpenID Connect dance...');
     const browser = await puppeteer.launch({
         // Switch to false if you need to login interactively
@@ -122,15 +145,15 @@ async function downloadVideo(videoUrls, password, outputDirectory, videoPwd) {
         timeout = argv.timeout;
     }
 
-    var page = await login(credentials, browser);
-    await sleep(3000*timeout)
+    const page = await login(credentials, browser);
+    await sleep(3000 * timeout)
     const cookie = await extractCookies(page)
     //console.log(cookie);
     console.log('Got required authentication cookies.');
     console.log("\nAt this point Chrome's job is done, shutting it down...");
     await browser.close(); // browser is no more required. Free up RAM!
 
-    var headers = {
+    const headers = {
         'Cookie': cookie,
         'accessPwd': videoPwd
     };
@@ -141,13 +164,13 @@ async function downloadVideo(videoUrls, password, outputDirectory, videoPwd) {
 
         try {
 
-            if(extractRCID(videoUrl) != null) { // check if the videoUrl is in the new format https://politecnicomilano.webex.com/politecnicomilano/ldr.php?RCID=15abe8b5bcf02a50a20b056cc2263211
+            if (extractRCID(videoUrl) != null) { // check if the videoUrl is in the new format https://politecnicomilano.webex.com/politecnicomilano/ldr.php?RCID=15abe8b5bcf02a50a20b056cc2263211
                 var options = {
                     url: videoUrl,
                     headers: headers
                 };
-                var redirectUrl = await getRedirectUrl(options) // get videoUrl in the usual format. Needed to obtain the correct videoID , in order to use in the API
-                if(redirectUrl !== null) {
+                const redirectUrl = await getRedirectUrl(options); // get videoUrl in the usual format. Needed to obtain the correct videoID , in order to use in the API
+                if (redirectUrl !== null) {
                     videoUrl = redirectUrl;
                 }
             }
@@ -178,10 +201,10 @@ async function downloadVideo(videoUrls, password, outputDirectory, videoPwd) {
             continue;
         }
 
-        var title = (obj.recordName).trim();
+        let title = (obj.recordName).trim();
         console.log(`\nVideo title is: ${title}`);
         title = title.replace(/[/\\?%*:;|"<>]/g, '-'); // remove illegal characters
-        var isoDate = obj.createTime;
+        const isoDate = obj.createTime;
         if (isoDate !== null && isoDate !== '') {
             let date = new Date(isoDate);
             let year = date.getFullYear();
@@ -255,7 +278,8 @@ async function downloadVideo(videoUrls, password, outputDirectory, videoPwd) {
             title: 'PoliWebex',
             message: 'DONE! See logs on terminal.',
             appID: "https://nodejs.org/", // Such a smart assignment to avoid SnoreToast start menu link. Don't say to my mother.
-        }, function(error, response) { /*console.log(response);*/ });
+        }, function (error, response) { /*console.log(response);*/
+        });
     }
 
 }
@@ -279,7 +303,7 @@ async function login(credentials, browser) {
 
     try {
         await page.waitForSelector('div[class="Message ErrorMessage"]', {
-            timeout: 1000*timeout
+            timeout: 1000 * timeout
         });
         term.red('Bad credentials.\nIf you need to change the saved password, add the \'-p\' parameter\nTo change username/email, edit them in the config.json file');
         process.exit(401);
@@ -289,7 +313,7 @@ async function login(credentials, browser) {
 
     try {
         await page.waitForSelector('button[name="evn_continua"]', {
-            timeout: 1000*timeout
+            timeout: 1000 * timeout
         }); // password is expiring
         await page.click('button[name="evn_continua"]');
     } catch (error) {
@@ -298,14 +322,14 @@ async function login(credentials, browser) {
 
     try {
         await page.waitForSelector('#dati_applicativi_autorizzazioniXSceltaMatricolaColl', {
-            timeout: 2000*timeout
+            timeout: 2000 * timeout
         });
         await page.click('#dati_applicativi_autorizzazioniXSceltaMatricolaColl > tbody > tr:nth-child(1) > td:nth-child(1) > a'); // clicca sulla prima matricola
     } catch (error) {
         // scelta della matricola non apparsa, ok...
     }
 
-    var currentIndex = 0;
+    const currentIndex = 0;
 
     await browser.waitForTarget(target => target.url().includes('politecnicomilano.webex.com/'), {
         timeout: 90000
@@ -316,14 +340,14 @@ async function login(credentials, browser) {
 
 async function directDownload(params) {
     let times = 5;
-    var count = 0;
+    let count = 0;
     while (count < times) { // make aria2 multithreading download more consistent and reliable
         try {
 
             // download async. I'm Speed
             const fullTitle = params.title + '.mp4';
-            var aria2cCmd = 'aria2c -j 16 -x 16 -d "' + argv.outputDirectory + '" -o "' + fullTitle + '" "' + params.mp4DirectDownloadUrl + '"';
-            var result = execSync(aria2cCmd, {stdio: 'inherit'});
+            const aria2cCmd = 'aria2c -j 16 -x 16 -d "' + argv.outputDirectory + '" -o "' + fullTitle + '" "' + params.mp4DirectDownloadUrl + '"';
+            const result = execSync(aria2cCmd, {stdio: 'inherit'});
         } catch (e) {
             term.yellow('\n\nOops! We lost some video fragment! Trying one more time...\n\n');
             count++;
@@ -340,7 +364,7 @@ async function directDownload(params) {
 }
 
 async function segmentedDownload(params) {
-    var full_tmp_dir = path.join(argv.outputDirectory, params.videoID);
+    const full_tmp_dir = path.join(argv.outputDirectory, params.videoID);
     // creates tmp dir
     if (!fs.existsSync(full_tmp_dir)) {
         fs.mkdirSync(full_tmp_dir);
@@ -350,10 +374,10 @@ async function segmentedDownload(params) {
     }
 
     try {
-        var options = {
+        const options = {
             url: params.src,
         };
-        var response = await doRequest(options);
+        const response = await doRequest(options);
     } catch (e) {
         term.red('\nCan\'t get current video HLS-URL. Going to the next one.\n');
         notDownloaded.push(params.videoUrl);
@@ -361,21 +385,21 @@ async function segmentedDownload(params) {
         return;
     }
 
-    var baseUri = (params.src).substring(0, (params.src).lastIndexOf("/") + 1);
-    var video_full = await response.replace(new RegExp('(.*\.ts)', 'g'), baseUri + '$1'); // local path to full remote url path
-    var video_tmp = await response.replace(new RegExp('(.*\.ts)', 'g'), 'video_segments/$1');
+    const baseUri = (params.src).substring(0, (params.src).lastIndexOf("/") + 1);
+    const video_full = await response.replace(new RegExp('(.*\.ts)', 'g'), baseUri + '$1'); // local path to full remote url path
+    const video_tmp = await response.replace(new RegExp('(.*\.ts)', 'g'), 'video_segments/$1');
     const video_full_path = path.join(full_tmp_dir, 'video_full.m3u8');
     const video_tmp_path = path.join(full_tmp_dir, 'video_tmp.m3u8');
     const video_segments_path = path.join(full_tmp_dir, 'video_segments');
     let times = 5;
-    var count = 0;
+    let count = 0;
     while (count < times) { // make aria2 multithreading download more consistent and reliable
         try {
             fs.writeFileSync(video_full_path, video_full);
             fs.writeFileSync(video_tmp_path, video_tmp);
 
             // download async. I'm Speed
-            var aria2cCmd = 'aria2c -i "' + video_full_path + '" -j 16 -x 16 -d "' + video_segments_path + '" -c'; // '-c' (continue param) -> to download missing segements if download is retried
+            const aria2cCmd = 'aria2c -i "' + video_full_path + '" -j 16 -x 16 -d "' + video_segments_path + '" -c'; // '-c' (continue param) -> to download missing segements if download is retried
             var result = execSync(aria2cCmd, {stdio: 'inherit'});
         } catch (e) {
             term.yellow('\n\nOops! We lost some video fragment! Trying to retrieve them...\n\n');
@@ -392,19 +416,19 @@ async function segmentedDownload(params) {
 
     // *** MERGE  video segements (.ts) in an mp4 file ***
 
-    var title = params.title;
+    let title = params.title;
     if (fs.existsSync(path.join(argv.outputDirectory, params.title + '.mp4'))) { // if file already exists, add a random string at the end of filename
         title = title + '-' + Date.now('nano');
     }
 
     // stupid Windows. Need to find a better way
     var ffmpegCmd = '';
-    var ffmpegOpts = {
+    const ffmpegOpts = {
         stdio: 'inherit'
     };
     if (process.platform === 'win32') {
         ffmpegOpts['cwd'] = full_tmp_dir; // change working directory on windows, otherwise ffmpeg doesn't find the segements (relative paths problem, again, stupid windows. Or stupid me?)
-        var outputFullPath = '';
+        let outputFullPath = '';
         if (path.isAbsolute(argv.outputDirectory) || argv.outputDirectory[0] == '~')
             outputFullPath = path.join(argv.outputDirectory, title);
         else
@@ -424,10 +448,10 @@ async function segmentedDownload(params) {
 
 async function askForCredentials(password) {
 
-    var codicePersona = '';
-    var email = '';
-    var changed = false;
-    var info = {}
+    let codicePersona = '';
+    let email = '';
+    let changed = false;
+    let info = {};
 
     if (fs.existsSync('config.json')) {
         let rawdata = fs.readFileSync('config.json');
@@ -458,7 +482,7 @@ async function askForCredentials(password) {
     }
 
     if (changed) {
-        var json = JSON.stringify(info, null, 4);
+        const json = JSON.stringify(info, null, 4);
         fs.writeFileSync('config.json', json);
     }
 
@@ -469,7 +493,7 @@ async function askForCredentials(password) {
         var password = {};
         if (argv.noKeyring === false) {
             try {
-                await keytar.getPassword("PoliWebex", info.codicePersona).then(function(result) {
+                await keytar.getPassword("PoliWebex", info.codicePersona).then(function (result) {
                     password = result;
                 });
                 if (password === null) { // no previous password saved
@@ -501,8 +525,8 @@ async function askForCredentials(password) {
 }
 
 function doRequest(options) {
-    return new Promise(function(resolve, reject) {
-        request(options, function(error, res, body) {
+    return new Promise(function (resolve, reject) {
+        request(options, function (error, res, body) {
             if (!error && (res.statusCode == 200 || res.statusCode == 403)) {
                 resolve(body);
             } else {
@@ -524,14 +548,13 @@ function xmlToJSON(str, options) {
 }
 
 function extractVideoID(videoUrl) {
-    var url = new URL(videoUrl);
-    var pathnameArray = url.pathname.split('/');
+    const url = new URL(videoUrl);
+    const pathnameArray = url.pathname.split('/');
     for (let part of pathnameArray) {
         if (part.length == 32) {
             return part;
-        }
-        else if (part.length > 32) {
-            var char32 = part.slice(0,32)
+        } else if (part.length > 32) {
+            const char32 = part.slice(0, 32);
             if (char32.match(/^[a-z0-9]+$/i)) // first 32 char are alphanumeric
                 return char32;
         }
@@ -540,12 +563,12 @@ function extractVideoID(videoUrl) {
 }
 
 function extractRCID(videoUrl) {
-    var url = new URL(videoUrl);
+    const url = new URL(videoUrl);
     return url.searchParams.get("RCID");
 }
 
 async function getRedirectUrl(options) {
-    var body = await doRequest(options);
+    const body = await doRequest(options);
     return body.match(/location\.href='(.*?)';/)[1];
 }
 
@@ -556,9 +579,9 @@ function promptResChoice(question, count) {
         output: process.stdout
     });
 
-    return new Promise(function(resolve, reject) {
-        var ask = function() {
-            rl.question(question, function(answer) {
+    return new Promise(function (resolve, reject) {
+        const ask = function () {
+            rl.question(question, function (answer) {
                 if (!isNaN(answer) && parseInt(answer) < count && parseInt(answer) >= 0) {
                     resolve(parseInt(answer), reject);
                     rl.close();
@@ -579,9 +602,9 @@ function promptQuestion(question) {
         output: process.stdout
     });
 
-    return new Promise(function(resolve, reject) {
-        var ask = function() {
-            rl.question(question, function(answer) {
+    return new Promise(function (resolve, reject) {
+        const ask = function () {
+            rl.question(question, function (answer) {
                 resolve(answer, reject);
                 rl.close();
             });
@@ -592,7 +615,7 @@ function promptQuestion(question) {
 
 
 function rmDir(dir, rmSelf) {
-    var files;
+    let files;
     rmSelf = (rmSelf === undefined) ? true : rmSelf;
     dir = dir + "/";
     try {
@@ -602,7 +625,7 @@ function rmDir(dir, rmSelf) {
         return;
     }
     if (files.length > 0) {
-        files.forEach(function(x, i) {
+        files.forEach(function (x, i) {
             if (fs.statSync(dir + x).isDirectory()) {
                 rmDir(dir + x);
             } else {
@@ -623,11 +646,11 @@ function sleep(ms) {
 
 async function extractCookies(page) {
     var jar = await page.cookies("https://.webex.com");
-    var ticketCookie = jar.filter(c => c.name === 'ticket')[0];
+    const ticketCookie = jar.filter(c => c.name === 'ticket')[0];
     if (ticketCookie == null) {
         await sleep(5000);
         var jar = await page.cookies("https://.webex.com");
-        var tiketCookie = jar.filter(c => c.name === 'ticket')[0];
+        const tiketCookie = jar.filter(c => c.name === 'ticket')[0];
     }
     if (ticketCookie == null) {
         console.error('Unable to read cookies. Try launching one more time, this is not an exact science.');

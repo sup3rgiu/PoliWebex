@@ -1,54 +1,47 @@
 # PoliWebex
+If you are not familiar with the terminal, you can use this browser extension to download WebEx videos directly from the webpage: https://github.com/jacopo-j/WebXDownloader
+If you need to download multiple videos all at once and/or prefer a faster download through aria2c, go ahead with this project 😉
 
-If you are not familiar with terminal, you can use this browser extension to download WebEx videos directly from the webpage: https://github.com/jacopo-j/WebXDownloader    
-
-If you need to download multiple videos at once and/or prefer a faster download through aria2c, go ahead with this project 😉
-
-## Saves WebEx videos uploaded by Politecnico di Milano.
-
+## Save WebEx videos uploaded by Politecnico di Milano.
 Features:
  - PoliMi autologin
- - Multithreading download through aria2c
+ - Multithreaded download through aria2c
 
-
-## PREREQS
-
+## Prerequisites
 * [**Node.js**](https://nodejs.org/it/download/): anything above v8.0 seems to work.
 * [**aria2**](https://github.com/aria2/aria2/releases): this needs to be in your `$PATH` (for example, copy aria2c.exe to c:\windows). PoliWebex calls `aria2c` with a bunch of arguments in order to improve the download speed.
 * [**ffmpeg**](https://www.ffmpeg.org/download.html): a recent version (year 2019 or above), in [`$PATH`](https://www.thewindowsclub.com/how-to-install-ffmpeg-on-windows-10).
 
-## Windows Installation instructions
-(On others OS is pretty much the same)\
-**N.B:** ffmpeg.zeranoe.com closed since Sep 18, 2020. If you are following the video tutorial, download ffmpeg from another source available on [ffmpeg site](https://www.ffmpeg.org/download.html) (nightly build is no more required)
+## Installation
+* Clone this repository: `git clone https://github.com/sup3rgiu/PoliWebex`
+* `cd` into the cloned directory
+* `npm install` to install dependencies
 
-This tutorial comes from my other project [PoliDown](https://github.com/sup3rgiu/PoliDown). The installation process is the same, just use clone this repo (and not PoliDown repo) and write "poliwebex" where in the video appear "polidown"
+## Additional Instructions
+This video tutorial comes from my other project [PoliDown](https://github.com/sup3rgiu/PoliDown). 
+The installation process is the same, just clone this repository and write "poliwebex" where in the video appear "polidown"
 
 [![https://user-images.githubusercontent.com/7725068/76635047-21a89080-6547-11ea-8da9-31831ca7620a.png](https://user-images.githubusercontent.com/7725068/76635345-a1cef600-6547-11ea-991b-d115946ed556.png)](http://www.youtube.com/watch?v=iZgea4t5YW4 "PoliDown Windows Installation Instructions")
 
+(On others OS it is pretty much the same)<br>
+**Note:** `ffmpeg.zeranoe.com` closed since Sep 18, 2020. If you are following the video tutorial, download ffmpeg from another source available on [ffmpeg site](https://www.ffmpeg.org/download.html) (nightly build isn't required anymore)
 
-## USAGE
-
-* Clone this repo
-* `cd` into the cloned folder
-* `npm install` to install dependencies
-
-### COMMAND LINE USAGE
-
-Default usage:
+### CLI Usage
+##### Default usage:
 ```
 $ node poliwebex --videoUrls "https://politecnicomilano.webex.com/webappng/sites/politecnicomilano/recording/play/VIDEO-1"
 
 $ node poliwebex -v "https://politecnicomilano.webex.com/webappng/sites/politecnicomilano/recording/play/VIDEO-1"
 ```
 
-Show options:
+##### Additional options:
 ```
 $ node poliwebex -h
 
 Options:
   --version                  Show version number                       [boolean]
   -v, --videoUrls                                                        [array]
-  -f, --videoUrlsFile    Path to txt file containing the URLs (one URL for each line) [string]
+  -f, --videoUrlsFile        Path to txt file containing the URLs (one URL for each line) [string]
   -p, --password                                                        [string]
   -s, --segmented            Download video in a segmented way. Could be (a lot)
                              faster on powerful PC with good download speed [boolean] [default: false]
@@ -60,50 +53,49 @@ Options:
   -h, --help                 Show help                                 [boolean]
 ```
 
-Multiple videos download:
+##### Multiple videos download:
 ```
 $ node poliwebex -v "https://politecnicomilano.webex.com/webappng/sites/politecnicomilano/recording/play/VIDEO-1" "https://politecnicomilano.webex.com/webappng/sites/politecnicomilano/recording/play/VIDEO-2"
 ```
 
-Download from TXT file (one link each line):
+##### Download from TXT file (one link each line):
 ```
 $ node poliwebex -f "/my/path/here/links.txt"
 ```
 
-Output directory (relative or absoulte path):
+##### Output directory (relative or absoulte path):
 ```
 $ node poliwebex -v "https://politecnicomilano.webex.com/webappng/sites/politecnicomilano/recording/play/VIDEO-1" -o "/my/path/here"
 ```
 
-Replace saved password
+##### Replace saved password
 ```
 $ node poliwebex -p MYNEWPASSWORD -v "https://politecnicomilano.webex.com/webappng/sites/politecnicomilano/recording/play/VIDEO-1"
 ```
 
-Download the video in a segmented way. Could be (a lot) faster on powerful PC with good download speed
+##### Download the video in a segmented way. Could be (a lot) faster on powerful PC with good download speed
 ```
 $ node poliwebex  -v "https://politecnicomilano.webex.com/webappng/sites/politecnicomilano/recording/play/VIDEO-1" -s
 ```
 
-Download password-protected video
+##### Download password-protected video
 ```
 $ node poliwebex  -v "https://politecnicomilano.webex.com/webappng/sites/politecnicomilano/recording/play/VIDEO-1" -w PASSWORD
 ```
 
-Scale timeout values by a factor X (integer or float value). Really useful for slow connections while performing login operations
+##### Scale timeout values by a factor X (integer or float value). Really useful for slow connections while performing login operations
 ```
 $ node poliwebex  -v "https://politecnicomilano.webex.com/webappng/sites/politecnicomilano/recording/play/VIDEO-1" -i X
 ```
 
-Do not use system keyring to save the password:
+##### Do not use system keyring to save the password:
 ```
 $ node poliwebex -v "https://politecnicomilano.webex.com/webappng/sites/politecnicomilano/recording/play/VIDEO-1" -k
 ```
 
-You can omit the password argument. PoliWebex will ask for it interactively and then save it securely in system's keychain for the next use.
+You can omit the password argument. PoliWebex will ask for it interactively and then securely store it inside the system keychain for the next run.
 
-## EXPECTED OUTPUT
-
+### Expected Output
 ```
 Project powered by @sup3rgiu
 Features: PoliMi Autologin - Multithreading download
@@ -134,4 +126,4 @@ Video title is: Lesson number 1 - The cat is on the table
 Done!
 ```
 
-The video is now saved under `videos/`, or whatever the `outputDirectory` argument points to.
+The video will be saved under `videos/`, or whatever the `outputDirectory` argument is set to.
