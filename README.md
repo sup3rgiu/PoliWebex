@@ -4,6 +4,8 @@ If you are not familiar with terminal, you can use this browser extension to dow
 
 If you need to download multiple videos at once and/or prefer a faster download through aria2c, go ahead with this project 😉
 
+GUI Version: https://github.com/yuyu-19/PoliDL-GUI
+
 ## Saves WebEx videos uploaded by Politecnico di Milano.
 
 Features:
