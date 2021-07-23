@@ -4,7 +4,7 @@
     "type": "git",
     "url": "git://github.com/sup3rgiu/poliwebex.git"
   },
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Save Cisco WebEx videos uploaded by Politecnico di Milano.",
   "main": "poliwebex.js",
   "keywords": [],
@@ -15,9 +15,9 @@
     "keytar": "^7.7.0",
     "m3u8-parser": "^4.7.0",
     "node-notifier": "^10.0.0",
-    "puppeteer": "^10.0.0",
+    "puppeteer": "^10.1.0",
     "request": "^2.88.2",
-    "terminal-kit": "^2.1.5",
+    "terminal-kit": "^2.1.6",
     "xml2js": "^0.4.23",
     "yargs": "^17.0.1"
   }
