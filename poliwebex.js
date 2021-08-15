@@ -275,7 +275,8 @@ async function login(credentials, browser) {
     await page.waitForSelector('input[id="login"]');
     await page.type('input#login', credentials.codicePersona) // mette il codice persona
     await page.type('input#password', credentials.password) // mette la password
-    await page.click('button[name="evn_conferma"]') // clicca sul tasto "Accedi"
+    const button = await page.$('button[name="evn_conferma"]');
+    await button.evaluate(b => b.click()); // clicca sul tasto "Accedi"
 
     try {
         await page.waitForSelector('div[class="Message ErrorMessage"]', {
@@ -291,7 +292,8 @@ async function login(credentials, browser) {
         await page.waitForSelector('button[name="evn_continua"]', {
             timeout: 1000*timeout
         }); // password is expiring
-        await page.click('button[name="evn_continua"]');
+        const button = await page.$('button[name="evn_conferma"]');
+        await button.evaluate(b => b.click()); // clicca sul tasto "Accedi"
     } catch (error) {
         // password is not expiring
     }
