@@ -111,4 +111,4 @@ package-lock.json
 *.DS_Store
 
 videos/
-package-lock.json
+package-lock.json*
