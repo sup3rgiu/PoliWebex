@@ -204,7 +204,7 @@ async function downloadVideo(videoUrls, password, outputDirectory, videoPwd) {
         const timestamp = obj.mp4StreamOption.timestamp
         const token = obj.mp4StreamOption.token
 
-        const html5ApiUrl = 'https://nln1vss.webex.com/apis/html5-pipeline.do?recordingDir=' + recordingDir + '&timestamp=' + timestamp + '&token=' + token + '&xmlName=recording.xml'
+        const html5ApiUrl = 'https://nfg1vss.webex.com/apis/html5-pipeline.do?recordingDir=' + recordingDir + '&timestamp=' + timestamp + '&token=' + token + '&xmlName=recording.xml'
 
         try {
             var options = {
@@ -228,7 +228,7 @@ async function downloadVideo(videoUrls, password, outputDirectory, videoPwd) {
         }
 
         if (argv.segmented === false) {
-            const mp4DirectDownloadUrl = 'https://nln1vss.webex.com/apis/download.do?recordingDir=' + recordingDir + '&timestamp=' + timestamp + '&token=' + token + '&fileName=' + filename;
+            const mp4DirectDownloadUrl = 'https://nfg1vss.webex.com/apis/download.do?recordingDir=' + recordingDir + '&timestamp=' + timestamp + '&token=' + token + '&fileName=' + filename;
             var params = {
                 mp4DirectDownloadUrl: mp4DirectDownloadUrl,
                 title: title,
@@ -236,7 +236,7 @@ async function downloadVideo(videoUrls, password, outputDirectory, videoPwd) {
             }
             await directDownload(params);
         } else {
-            const src = 'https://nln1vss.webex.com/hls-vod/recordingDir/' + recordingDir + '/timestamp/' + timestamp + '/token/' + token + '/fileName/' + filename + '.m3u8'
+            const src = 'https://nfg1vss.webex.com/hls-vod/recordingDir/' + recordingDir + '/timestamp/' + timestamp + '/token/' + token + '/fileName/' + filename + '.m3u8'
             var params = {
                 src: src,
                 title: title,
