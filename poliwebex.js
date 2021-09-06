@@ -279,7 +279,7 @@ async function login(credentials, browser) {
     await button.evaluate(b => b.click()); // clicca sul tasto "Accedi"
 
     try {
-        await page.waitForSelector('div[class="Message ErrorMessage"]', {
+        await page.waitForSelector('div[class="poli-messages"] > div[class="alert alert-danger"]', {
             timeout: 1000*timeout
         });
         term.red('Bad credentials.\nIf you need to change the saved password, add the \'-p\' parameter\nTo change username/email, edit them in the config.json file');
