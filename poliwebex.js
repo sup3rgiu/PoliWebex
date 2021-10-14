@@ -15,12 +15,13 @@ const argv = yargs.options({
     v: { alias:'videoUrls', type: 'array', demandOption: false },
     f: { alias: 'videoUrlsFile', type: 'string', demandOption: false, describe: 'Path to txt file containing the URLs (one URL for each line)'},
     p: { alias:'password', type: 'string', demandOption: false },
-    s: { alias:'segmented', type: 'boolean', default:false, demandOption: false, describe: 'Download video in a segmented way. Could be (a lot) faster on powerful PC with good download speed' },
+    s: { alias:'segmented', type: 'boolean', default:false, demandOption: false, describe: 'Download video in a segmented way. Could be faster than direct download' },
     o: { alias:'outputDirectory', type: 'string', default: 'videos' },
     k: { alias: 'noKeyring', type: 'boolean', default: false, demandOption: false, describe: 'Do not use system keyring'},
     t: { alias: 'noToastNotification', type: 'boolean', default: false, demandOption: false, describe: 'Disable toast notification'},
     i: { alias: 'timeout', type: 'number', demandOption: false, describe: 'Scale timeout by a factor X'},
-    w: { alias: 'videoPwd', type: 'string', default: '', demandOption: false, describe: 'Video Password'}
+    w: { alias: 'videoPwd', type: 'string', default: '', demandOption: false, describe: 'Video Password'},
+    e: { alias: 'extract', type: 'boolean', default: false, demandOption: false, describe: 'Just extract the links'}
 })
 .help('h')
 .alias('h', 'help')
@@ -28,7 +29,7 @@ const argv = yargs.options({
 .example('node $0 -f URLsList.txt\n', "Standard usage")
 .example('node $0 -v "https://politecnicomilano.webex.com/recordingservice/sites/politecnicomilano/recording/playback/8de59dbf0a0345c6b525ed45a2c50607" "https://politecnicomilano.webex.com/recordingservice/sites/politecnicomilano/recording/playback/9ce59ddr5a0345c6b525ed45a2c50607"\n', "Multiple videos download")
 .example('node $0 -v "https://politecnicomilano.webex.com/recordingservice/sites/politecnicomilano/recording/playback/8de59dbf0a0345c6b525ed45a2c50607" -o "C:\\Lessons\\Videos"\n', "Define output directory (absoulte o relative path)")
-.example('node $0 -v "https://politecnicomilano.webex.com/recordingservice/sites/politecnicomilano/recording/playback/8de59dbf0a0345c6b525ed45a2c50607" -s\n', "Download video in a segmented way. Could be (a lot) faster on powerful PC with good download speed")
+.example('node $0 -v "https://politecnicomilano.webex.com/recordingservice/sites/politecnicomilano/recording/playback/8de59dbf0a0345c6b525ed45a2c50607" -s\n', "Download video in a segmented way. Could be faster than direct download")
 .example('node $0 -v "https://politecnicomilano.webex.com/recordingservice/sites/politecnicomilano/recording/playback/8de59dbf0a0345c6b525ed45a2c50607" -w PASSWORD\n', "Download password-protected video")
 .example('node $0 -v "https://politecnicomilano.webex.com/recordingservice/sites/politecnicomilano/recording/playback/8de59dbf0a0345c6b525ed45a2c50607" -i 2\n', "Double timeout value")
 .example('node $0 -v "https://politecnicomilano.webex.com/recordingservice/sites/politecnicomilano/recording/playback/8de59dbf0a0345c6b525ed45a2c50607" -k\n', "Do not save the password into system keyring")
@@ -108,27 +109,33 @@ function parseVideoUrls(videoUrls) {
 const notDownloaded = []; // take trace of not downloaded videos
 var timeout = 1;
 
+var browser = null
+
 async function downloadVideo(videoUrls, password, outputDirectory, videoPwd) {
 
-    var credentials = await askForCredentials(password);
-    console.log('\nLaunching headless Chrome to perform the OpenID Connect dance...');
-    const browser = await puppeteer.launch({
-        // Switch to false if you need to login interactively
-        headless: true,
-        args: ['--disable-dev-shm-usage', '--lang=it-IT']
-    });
+    const recmanUrls = await extractRecmanUrls(videoUrls)
+    if(recmanUrls.length > 0) {
 
-    if (argv.timeout !== undefined) {
-        timeout = argv.timeout;
+        term.yellow('RecMan links have been found. Sadly, we need to login even if cookies are already saved...\n\n');
+
+        for(let recmanUrl of recmanUrls) {
+            let webex_urls = await extractRecordingsUrl(recmanUrl)
+            videoUrls = videoUrls.concat(webex_urls)
+        }
+
+        console.log("\nExtraction complete! At this point Chrome's job is done, shutting it down...\n");
+        if(browser != null) { await browser.close(); } // browser is no more required. Free up RAM!
+
+        videoUrls = videoUrls.filter(url => !recmanUrls.includes(url)) // remove recman links not that we extracted the WebEx urls
+        if(argv.extract === true) {
+            console.log("Extracted links:")
+            console.log(videoUrls)
+            process.exit(0)
+        }
+        console.info('Video URLs after extraction: %s\n', videoUrls);
     }
 
-    var page = await login(credentials, browser);
-    await sleep(3000*timeout)
-    const cookie = await extractCookies(page)
-    //console.log(cookie);
-    console.log('Got required authentication cookies.');
-    console.log("\nAt this point Chrome's job is done, shutting it down...");
-    await browser.close(); // browser is no more required. Free up RAM!
+    const cookie = await getCookies(password)
 
     var headers = {
         'Cookie': cookie,
@@ -228,9 +235,11 @@ async function downloadVideo(videoUrls, password, outputDirectory, videoPwd) {
         }
 
         if (argv.segmented === false) {
-            const mp4DirectDownloadUrl = 'https://nfg1vss.webex.com/apis/download.do?recordingDir=' + recordingDir + '&timestamp=' + timestamp + '&token=' + token + '&fileName=' + filename;
+            const mp4DirectDownloadUrl_slow = 'https://nfg1vss.webex.com/apis/download.do?recordingDir=' + recordingDir + '&timestamp=' + timestamp + '&token=' + token + '&fileName=' + filename;
+            const mp4DirectDownloadUrl_fast = obj.fallbackPlaySrc     // new endpoint that can be (ab)used to download the video --> really fast if works, since WebEx itself provides Multithreading on this url
             var params = {
-                mp4DirectDownloadUrl: mp4DirectDownloadUrl,
+                mp4DirectDownloadUrl_slow: mp4DirectDownloadUrl_slow,
+                mp4DirectDownloadUrl_fast: mp4DirectDownloadUrl_fast,
                 title: title,
                 videoUrl: videoUrl,
             }
@@ -292,8 +301,8 @@ async function login(credentials, browser) {
         await page.waitForSelector('button[name="evn_continua"]', {
             timeout: 1000*timeout
         }); // password is expiring
-        const button = await page.$('button[name="evn_conferma"]');
-        await button.evaluate(b => b.click()); // clicca sul tasto "Accedi"
+        const button = await page.$('button[name="evn_continua"]');
+        await button.evaluate(b => b.click()); // clicca sul tasto "Continua"
     } catch (error) {
         // password is not expiring
     }
@@ -321,10 +330,16 @@ async function directDownload(params) {
     var count = 0;
     while (count < times) { // make aria2 multithreading download more consistent and reliable
         try {
-
             // download async. I'm Speed
             const fullTitle = params.title + '.mp4';
-            var aria2cCmd = 'aria2c -j 16 -x 16 -d "' + argv.outputDirectory + '" -o "' + fullTitle + '" "' + params.mp4DirectDownloadUrl + '"';
+            let mp4DirectDownloadUrl
+            if (count < 2) {
+                mp4DirectDownloadUrl = params.mp4DirectDownloadUrl_fast
+            } else {
+                term.yellow('Switching to fallback download URL, slower...\n\n');
+                mp4DirectDownloadUrl = params.mp4DirectDownloadUrl_slow // fallback on slow url if the fast one doesn't work multiple times
+            }
+            var aria2cCmd = 'aria2c -j 16 -x 16 --console-log-level=error -d "' + argv.outputDirectory + '" -o "' + fullTitle + '" "' + mp4DirectDownloadUrl + '"';
             var result = execSync(aria2cCmd, {stdio: 'inherit'});
         } catch (e) {
             term.yellow('\n\nOops! We lost some video fragment! Trying one more time...\n\n');
@@ -377,7 +392,7 @@ async function segmentedDownload(params) {
             fs.writeFileSync(video_tmp_path, video_tmp);
 
             // download async. I'm Speed
-            var aria2cCmd = 'aria2c -i "' + video_full_path + '" -j 16 -x 16 -d "' + video_segments_path + '" -c'; // '-c' (continue param) -> to download missing segements if download is retried
+            var aria2cCmd = 'aria2c -i "' + video_full_path + '" -j 16 -x 16 --console-log-level=error -d "' + video_segments_path + '" -c'; // '-c' (continue param) -> to download missing segements if download is retried
             var result = execSync(aria2cCmd, {stdio: 'inherit'});
         } catch (e) {
             term.yellow('\n\nOops! We lost some video fragment! Trying to retrieve them...\n\n');
@@ -411,11 +426,12 @@ async function segmentedDownload(params) {
             outputFullPath = path.join(argv.outputDirectory, title);
         else
             outputFullPath = path.join('..', '..', argv.outputDirectory, title);
-        var ffmpegCmd = 'ffmpeg -i ' + 'video_tmp.m3u8' + ' -async 1 -c copy -bsf:a aac_adtstoasc -n "' + outputFullPath + '.mp4"';
+        var ffmpegCmd = 'ffmpeg -loglevel error -i ' + 'video_tmp.m3u8' + ' -async 1 -c copy -bsf:a aac_adtstoasc -n "' + outputFullPath + '.mp4"';
     } else {
-        var ffmpegCmd = 'ffmpeg -i "' + video_tmp_path + '" -async 1 -c copy -bsf:a aac_adtstoasc -n "' + path.join(argv.outputDirectory, title) + '.mp4"';
+        var ffmpegCmd = 'ffmpeg -loglevel error -i "' + video_tmp_path + '" -async 1 -c copy -bsf:a aac_adtstoasc -n "' + path.join(argv.outputDirectory, title) + '.mp4"';
     }
 
+    term.brightBlue("\nMerging all the segments...")
     var result = execSync(ffmpegCmd, ffmpegOpts);
 
     // remove tmp dir
@@ -423,6 +439,154 @@ async function segmentedDownload(params) {
 
 }
 
+async function extractRecmanUrls(videoUrls) {
+    let videoUrlObj;
+    const aunicaUrls = [];
+    for (let videoUrl of videoUrls) {
+        if (videoUrl == "") continue; // jump empty url
+
+        videoUrlObj = new URL(videoUrl)
+        if(videoUrlObj.host == 'aunicalogin.polimi.it') {       // https://aunicalogin.polimi.it/aunicalogin/getservizio.xml?id_servizio=2294&c_classe_webeep=768632-STD
+            aunicaUrls.push(videoUrl)
+        }
+    }
+
+    return aunicaUrls
+}
+
+async function extractRecordingsUrl(aunicalogin_url) {
+    var page;
+    const webexUrls = []
+    if(browser == null) {
+        var credentials = await askForCredentials(argv.password);
+        await openBrowser()
+        page = await login(credentials, browser);
+        await sleep(3000*timeout)
+        const cookie = await extractCookies(page) // update WebEx cookies while we're at it.
+        await saveCookies(cookie)
+    } else {
+        page = (await browser.pages())[0];
+    }
+
+    term.yellow('\nExtracting WebEx recordings from ' + aunicalogin_url +'\nThis could take a while...\n');
+
+    await page.goto(aunicalogin_url, { waitUntil: 'networkidle2' });
+    const showAllRecordingsUrl = await page.evaluate(() => {
+      const urlArray = Array.from(document.links).map((link) => link.href);
+      return urlArray.find((link) => link.includes("action=plen_0"))
+    });
+    await page.goto(showAllRecordingsUrl, { waitUntil: 'networkidle2' });
+
+    let recordingsUrl = await page.evaluate(() => {
+        let elements = document.getElementsByClassName('TableDati-tbody')[0].getElementsByTagName('a');
+        const urlArray = Array.from(elements).map((link) => link.href);
+        const uniqueUrlArray = [...new Set(urlArray)];
+        return uniqueUrlArray
+    });
+
+    const ssl_jsessionid = await extractJSESSIONCookie(page)
+
+    var options = {
+        headers: { 'Cookie': ssl_jsessionid, }
+    };
+
+    for(let recordingUrl of recordingsUrl) {
+        options.url = recordingUrl
+        try {
+            var response = await doRequest(options)
+            const webexUrl = response.match(/location\.href='(.*?)';/)[1];
+            webexUrls.push(webexUrl)
+        } catch (e) {
+            // console.log(e)
+        }
+    }
+
+    return webexUrls
+}
+
+async function getCookies(password) {
+    let cookie = await getSavedCookies()
+    let isValidCookie = await checkCookieValidity(cookie)
+    if(cookie != null && isValidCookie) {
+        term.brightBlue('Reusing saved cookies. No login required this time :)\n');
+    } else {
+        cookie = getNewCookies(password)
+    }
+    return cookie;
+}
+
+async function getSavedCookies() {
+    return await getConfig('cookie')
+}
+
+async function checkCookieValidity(cookie) {
+    const checkUrl = 'https://politecnicomilano.webex.com/webappng/api/v1/pmrs/recent' // use an endpoint that requires valid cookies
+    var options = {
+        url: checkUrl,
+        headers: { 'Cookie': cookie, }
+    };
+
+    try {
+        var response = await doRequest(options)
+        return true
+    } catch (e) {
+        //console.log(e.statusCode)
+    }
+    return false
+}
+
+async function getNewCookies(password) {
+    var credentials = await askForCredentials(password);
+    await openBrowser()
+
+    if (argv.timeout !== undefined) {
+        timeout = argv.timeout;
+    }
+
+    var page = await login(credentials, browser);
+    await sleep(3000*timeout)
+    const cookie = await extractCookies(page)
+    //console.log(cookie);
+    await saveCookies(cookie)
+    console.log('Got required authentication cookies.');
+    console.log("\nAt this point Chrome's job is done, shutting it down...");
+    await browser.close(); // browser is no more required. Free up RAM!
+    return cookie;
+}
+
+async function saveCookies(cookies) {
+    await addConfig('cookie', cookies)
+}
+
+async function extractCookies(page) {
+    var jar = await page.cookies("https://.webex.com");
+    var ticketCookie = jar.filter(c => c.name === 'ticket')[0];
+    if (ticketCookie == null) {
+        await sleep(5000);
+        var jar = await page.cookies("https://.webex.com");
+        var tiketCookie = jar.filter(c => c.name === 'ticket')[0];
+    }
+    if (ticketCookie == null) {
+        console.error('Unable to read cookies. Try launching one more time, this is not an exact science.');
+        process.exit(88);
+    }
+    return `ticket=${ticketCookie.value}`;
+}
+
+async function extractJSESSIONCookie(page) {
+    var jar = await page.cookies("https://www11.ceda.polimi.it");
+    var sessionCookie = jar.filter(c => c.name === 'SSL_JSESSIONID')[0];
+    if (sessionCookie == null) {
+        await sleep(5000);
+        var jar = await page.cookies("https://www11.ceda.polimi.it");
+        var sessionCookie = jar.filter(c => c.name === 'SSL_JSESSIONID')[0];
+    }
+    if (sessionCookie == null) {
+        console.error('Unable to read session cookie. Try launching one more time, this is not an exact science.');
+        process.exit(88);
+    }
+    return `SSL_JSESSIONID=${sessionCookie.value}`;
+}
 
 async function askForCredentials(password) {
 
@@ -502,13 +666,53 @@ async function askForCredentials(password) {
     return info;
 }
 
+async function addConfig(key, value) {
+    var info = {}
+
+    if (fs.existsSync('config.json')) {
+        let rawdata = fs.readFileSync('config.json');
+        info = JSON.parse(rawdata)
+    }
+
+    info[key] = value
+    var json = JSON.stringify(info, null, 4);
+    fs.writeFileSync('config.json', json);
+}
+
+async function getConfig(key) {
+    if (fs.existsSync('config.json')) {
+        let rawdata = fs.readFileSync('config.json');
+        var info = JSON.parse(rawdata);
+
+        if (info.hasOwnProperty(key)) {
+            return info[key]
+        }
+    }
+    return null;
+}
+
+async function openBrowser() {
+    if(browser !== null) { return; } // browser already running
+
+    console.log('\nLaunching headless Chrome to perform the OpenID Connect dance...');
+    browser = await puppeteer.launch({
+        // Switch to false if you need to login interactively
+        headless: true,
+        args: ['--disable-dev-shm-usage', '--lang=it-IT']
+    });
+}
+
 function doRequest(options) {
     return new Promise(function(resolve, reject) {
         request(options, function(error, res, body) {
             if (!error && (res.statusCode == 200 || res.statusCode == 403)) {
                 resolve(body);
             } else {
-                reject(error);
+                if (!error) { // not an error but statusCode is not in the accepted ones
+                    reject({statusCode: res.statusCode});
+                } else {
+                    reject(error);
+                }
             }
         });
     });
@@ -592,7 +796,6 @@ function promptQuestion(question) {
     });
 }
 
-
 function rmDir(dir, rmSelf) {
     var files;
     rmSelf = (rmSelf === undefined) ? true : rmSelf;
@@ -618,24 +821,8 @@ function rmDir(dir, rmSelf) {
     }
 }
 
-
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-async function extractCookies(page) {
-    var jar = await page.cookies("https://.webex.com");
-    var ticketCookie = jar.filter(c => c.name === 'ticket')[0];
-    if (ticketCookie == null) {
-        await sleep(5000);
-        var jar = await page.cookies("https://.webex.com");
-        var tiketCookie = jar.filter(c => c.name === 'ticket')[0];
-    }
-    if (ticketCookie == null) {
-        console.error('Unable to read cookies. Try launching one more time, this is not an exact science.');
-        process.exit(88);
-    }
-    return `ticket=${ticketCookie.value}`;
 }
 
 term.brightBlue(`Project powered by @sup3rgiu\nFeatures: PoliMi Autologin - Multithreading download\n`);
