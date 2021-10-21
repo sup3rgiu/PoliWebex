@@ -21,7 +21,8 @@ const argv = yargs.options({
     t: { alias: 'noToastNotification', type: 'boolean', default: false, demandOption: false, describe: 'Disable toast notification'},
     i: { alias: 'timeout', type: 'number', demandOption: false, describe: 'Scale timeout by a factor X'},
     w: { alias: 'videoPwd', type: 'string', default: '', demandOption: false, describe: 'Video Password'},
-    e: { alias: 'extract', type: 'boolean', default: false, demandOption: false, describe: 'Just extract the links'}
+    e: { alias: 'extract', type: 'boolean', default: false, demandOption: false, describe: 'Just extract the links'},
+    l: { alias: 'headless', type: 'boolean', default: true, demandOption: false, describe: 'Run Puppeter in headless mode'}
 })
 .help('h')
 .alias('h', 'help')
@@ -34,6 +35,7 @@ const argv = yargs.options({
 .example('node $0 -v "https://politecnicomilano.webex.com/recordingservice/sites/politecnicomilano/recording/playback/8de59dbf0a0345c6b525ed45a2c50607" -i 2\n', "Double timeout value")
 .example('node $0 -v "https://politecnicomilano.webex.com/recordingservice/sites/politecnicomilano/recording/playback/8de59dbf0a0345c6b525ed45a2c50607" -k\n', "Do not save the password into system keyring")
 .example('node $0 -v "https://politecnicomilano.webex.com/recordingservice/sites/politecnicomilano/recording/playback/8de59dbf0a0345c6b525ed45a2c50607" -t\n', "Disable system toast notification about finished download process")
+.example('node $0 -v "https://politecnicomilano.webex.com/recordingservice/sites/politecnicomilano/recording/playback/8de59dbf0a0345c6b525ed45a2c50607" -l false\n', "Run Puppeter in non-headless mode")
 .argv;
 
 function sanityChecks() {
@@ -108,6 +110,7 @@ function parseVideoUrls(videoUrls) {
 
 const notDownloaded = []; // take trace of not downloaded videos
 var timeout = 1;
+const HEADLESS = argv.headless;   // Switch to false if you need to login interactively
 
 var browser = null
 
@@ -270,7 +273,13 @@ async function downloadVideo(videoUrls, password, outputDirectory, videoPwd) {
 }
 
 async function login(credentials, browser) {
-    const page = await browser.newPage();
+    let page;
+    if(HEADLESS === false) {
+        page = (await browser.pages())[0]; // in non-headless mode, there is already a blank page. Reuse it
+        if(page == null) { page = await browser.newPage(); } // safe check
+    } else {
+        page = await browser.newPage();
+    }
     console.log('Navigating to WebEx login page...');
     await page.goto('https://politecnicomilano.webex.com/mw3300/mywebex/login/login.do?siteurl=politecnicomilano-it&viewFrom=modern', {
         waitUntil: 'networkidle2'
@@ -446,7 +455,7 @@ async function extractRecmanUrls(videoUrls) {
         if (videoUrl == "") continue; // jump empty url
 
         videoUrlObj = new URL(videoUrl)
-        if(videoUrlObj.host == 'aunicalogin.polimi.it') {       // https://aunicalogin.polimi.it/aunicalogin/getservizio.xml?id_servizio=2294&c_classe_webeep=768632-STD
+        if(videoUrlObj.host == 'aunicalogin.polimi.it' || videoUrlObj.host == 'webeep.polimi.it') {       // https://aunicalogin.polimi.it/aunicalogin/getservizio.xml?id_servizio=2294&c_classe_webeep=768632-STD || https://webeep.polimi.it/course/view.php?id=1322&section=3
             aunicaUrls.push(videoUrl)
         }
     }
@@ -470,7 +479,13 @@ async function extractRecordingsUrl(aunicalogin_url) {
 
     term.yellow('\nExtracting WebEx recordings from ' + aunicalogin_url +'\nThis could take a while...\n');
 
+    if((new URL(aunicalogin_url)).host == 'webeep.polimi.it') {
+        aunicalogin_url = await getAunicaUrlFromWebeep(page, aunicalogin_url)
+        if(aunicalogin_url == null) { return webexUrls; }
+    }
+
     await page.goto(aunicalogin_url, { waitUntil: 'networkidle2' });
+    try { await page.waitForNavigation({ timeout: 2000*timeout }) } catch(e) {};
     const showAllRecordingsUrl = await page.evaluate(() => {
       const urlArray = Array.from(document.links).map((link) => link.href);
       return urlArray.find((link) => link.includes("action=plen_0"))
@@ -502,6 +517,43 @@ async function extractRecordingsUrl(aunicalogin_url) {
     }
 
     return webexUrls
+}
+
+async function getAunicaUrlFromWebeep(page, aunicalogin_url) {
+    aunicalogin_url += '&section=3' // add this parameter --> parameter to directly go the the Recordings page
+    await page.goto(aunicalogin_url, { waitUntil: 'networkidle2' });
+    try {
+        await browser.waitForTarget(target => target.url().includes('login/index.php'), {
+            timeout: 1000*timeout
+        });
+        const xpath_expr = "//a[contains(@href, 'auth')]"
+        await page.waitForXPath(xpath_expr);
+        const button = (await page.$x(xpath_expr))[0]; // get anchors where href contains "auth" --> login button
+        await button.evaluate(b => b.click()); // clicca sul tasto "Polimi login"
+
+    } catch (error) {
+        // WeBeep login not needed, already logged
+    }
+
+    try { await page.waitForNavigation({ timeout: 2000*timeout }) } catch(e) {};
+    // const xpath_expr = "//a[contains(@href, '/mod/url/view.php')]"
+    const xpath_expr = "//a[contains(., 'Archivio registrazioni') or contains(., 'Recordings archive')]"
+    try {
+        await page.waitForXPath(xpath_expr, { timeout: 3000*timeout});
+    } catch(e) {
+        term.red("\nCan't get the RecMan url. Did you submit the correct WeBeep link?\n")
+        return null
+    }
+    const anchor = (await page.$x(xpath_expr))[0];
+    const href = await page.evaluate(a => a.getAttribute('href'), anchor)
+    await page.goto(href, { waitUntil: 'networkidle2' });
+    let aunicaurl = await page.evaluate(() => {
+        let elements = document.getElementById('page-content').getElementsByTagName('a');
+        const urlArray = Array.from(elements).map((link) => link.href);
+        return urlArray.find((link) => link.includes("aunicalogin.polimi.it/aunicalogin/getservizio.xml"))
+    });
+
+    return aunicaurl;
 }
 
 async function getCookies(password) {
@@ -696,8 +748,7 @@ async function openBrowser() {
 
     console.log('\nLaunching headless Chrome to perform the OpenID Connect dance...');
     browser = await puppeteer.launch({
-        // Switch to false if you need to login interactively
-        headless: true,
+        headless: HEADLESS,
         args: ['--disable-dev-shm-usage', '--lang=it-IT']
     });
 }
