@@ -9,7 +9,7 @@ GUI Version: https://github.com/yuyu-19/PoliDL-GUI
 ## Saves WebEx videos uploaded by Politecnico di Milano.
 
 Features:
- - PoliMi autologin
+ - ~~PoliMi autologin~~ Manual login is required due to the introduction of SPID. In a feature release we will switch to OAuth2 authentication and the login will be required only once
  - Multithreading download through aria2c
 
 
