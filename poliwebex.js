@@ -22,7 +22,7 @@ const argv = yargs.options({
     i: { alias: 'timeout', type: 'number', demandOption: false, describe: 'Scale timeout by a factor X'},
     w: { alias: 'videoPwd', type: 'string', default: '', demandOption: false, describe: 'Video Password'},
     e: { alias: 'extract', type: 'boolean', default: false, demandOption: false, describe: 'Just extract the links'},
-    l: { alias: 'headless', type: 'boolean', default: true, demandOption: false, describe: 'Run Puppeter in headless mode'}
+    l: { alias: 'headless', type: 'boolean', default: false, demandOption: false, describe: 'Run Puppeter in headless mode'}
 })
 .help('h')
 .alias('h', 'help')
@@ -280,6 +280,7 @@ async function login(credentials, browser) {
     } else {
         page = await browser.newPage();
     }
+    await page.setViewport({ width: 1366, height: 768});
     console.log('Navigating to WebEx login page...');
     await page.goto('https://politecnicomilano.webex.com/mw3300/mywebex/login/login.do?siteurl=politecnicomilano-it&viewFrom=modern', {
         waitUntil: 'networkidle2'
@@ -290,40 +291,40 @@ async function login(credentials, browser) {
     await page.click('button[name="btnOK"]');
 
     console.log('Filling in Servizi Online login form...');
-    await page.waitForSelector('input[id="login"]');
-    await page.type('input#login', credentials.codicePersona) // mette il codice persona
-    await page.type('input#password', credentials.password) // mette la password
-    const button = await page.$('button[name="evn_conferma"]');
-    await button.evaluate(b => b.click()); // clicca sul tasto "Accedi"
-
-    try {
-        await page.waitForSelector('div[class="poli-messages"] > div[class="alert alert-danger"]', {
-            timeout: 1000*timeout
-        });
-        term.red('Bad credentials.\nIf you need to change the saved password, add the \'-p\' parameter\nTo change username/email, edit them in the config.json file');
-        process.exit(401);
-    } catch (error) {
-        // tutto ok
-    }
-
-    try {
-        await page.waitForSelector('button[name="evn_continua"]', {
-            timeout: 1000*timeout
-        }); // password is expiring
-        const button = await page.$('button[name="evn_continua"]');
-        await button.evaluate(b => b.click()); // clicca sul tasto "Continua"
-    } catch (error) {
-        // password is not expiring
-    }
-
-    try {
-        await page.waitForSelector('#dati_applicativi_autorizzazioniXSceltaMatricolaColl', {
-            timeout: 2000*timeout
-        });
-        await page.click('#dati_applicativi_autorizzazioniXSceltaMatricolaColl > tbody > tr:nth-child(1) > td:nth-child(1) > a'); // clicca sulla prima matricola
-    } catch (error) {
-        // scelta della matricola non apparsa, ok...
-    }
+    // await page.waitForSelector('input[id="login"]');
+    // await page.type('input#login', credentials.codicePersona) // mette il codice persona
+    // await page.type('input#password', credentials.password) // mette la password
+    // const button = await page.$('button[name="evn_conferma"]');
+    // await button.evaluate(b => b.click()); // clicca sul tasto "Accedi"
+    //
+    // try {
+    //     await page.waitForSelector('div[class="poli-messages"] > div[class="alert alert-danger"]', {
+    //         timeout: 1000*timeout
+    //     });
+    //     term.red('Bad credentials.\nIf you need to change the saved password, add the \'-p\' parameter\nTo change username/email, edit them in the config.json file');
+    //     process.exit(401);
+    // } catch (error) {
+    //     // tutto ok
+    // }
+    //
+    // try {
+    //     await page.waitForSelector('button[name="evn_continua"]', {
+    //         timeout: 1000*timeout
+    //     }); // password is expiring
+    //     const button = await page.$('button[name="evn_continua"]');
+    //     await button.evaluate(b => b.click()); // clicca sul tasto "Continua"
+    // } catch (error) {
+    //     // password is not expiring
+    // }
+    //
+    // try {
+    //     await page.waitForSelector('#dati_applicativi_autorizzazioniXSceltaMatricolaColl', {
+    //         timeout: 2000*timeout
+    //     });
+    //     await page.click('#dati_applicativi_autorizzazioniXSceltaMatricolaColl > tbody > tr:nth-child(1) > td:nth-child(1) > a'); // clicca sulla prima matricola
+    // } catch (error) {
+    //     // scelta della matricola non apparsa, ok...
+    // }
 
     var currentIndex = 0;
 
@@ -580,7 +581,8 @@ async function checkCookieValidity(cookie) {
 
     try {
         var response = await doRequest(options)
-        return true
+        if(isJSONString(response))
+            return true
     } catch (e) {
         //console.log(e.statusCode)
     }
@@ -804,6 +806,18 @@ function extractRCID(videoUrl) {
 async function getRedirectUrl(options) {
     var body = await doRequest(options);
     return body.match(/location\.href='(.*?)';/)[1];
+}
+
+function isJSONString (str) {
+    try {
+        var o = JSON.parse(str);
+        if (o && typeof o === "object") {
+            return true
+        }
+    }
+    catch (e) { }
+
+    return false
 }
 
 function promptResChoice(question, count) {
