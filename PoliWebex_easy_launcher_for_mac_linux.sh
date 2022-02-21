@@ -6,7 +6,7 @@
 
 # poliwebex_folder_path="/home/$USER/Videos/PoliWebex/scripts"
 
-read -p 'Drag here the directory where polidown.js is located (no_spaces_please): ' poliwebex_folder_path
+read -p 'Drag here the directory where poliwebex.js is located (no_spaces_please): ' poliwebex_folder_path
 
 read -p 'Drag here the URLs.txt formatted with one link per line (no_spaces_please): ' urls_file_path
 
