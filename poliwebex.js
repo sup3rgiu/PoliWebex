@@ -210,52 +210,74 @@ async function downloadVideo(videoUrls, password, outputDirectory, videoPwd) {
             // console.log("no upload date found");
         }
 
-        const recordingDir = obj.mp4StreamOption.recordingDir
-        const timestamp = obj.mp4StreamOption.timestamp
-        const token = obj.mp4StreamOption.token
+        var mp4DirectDownloadUrl = ''
+        var m3u8DownloadUrl = ''
 
-        const html5ApiUrl = 'https://nfg1vss.webex.com/apis/html5-pipeline.do?recordingDir=' + recordingDir + '&timestamp=' + timestamp + '&token=' + token + '&xmlName=recording.xml'
+        if(obj.mp4StreamOption.recordingDir) {
+          const recordingDir = obj.mp4StreamOption.recordingDir
+          const timestamp = obj.mp4StreamOption.timestamp
+          const token = obj.mp4StreamOption.token
+          const html5ApiUrl = 'https://nfg1vss.webex.com/apis/html5-pipeline.do?recordingDir=' + recordingDir + '&timestamp=' + timestamp + '&token=' + token + '&xmlName=recording.xml'
 
-        try {
-            var options = {
-                url: html5ApiUrl,
-            };
-            var xmlResponse = await doRequest(options);
-        } catch (e) {
-            term.red('\nCan\'t get current video XML-URL. Going to the next one.\n');
-            notDownloaded.push(videoUrl);
-            continue;
+          try {
+              var options = {
+                  url: html5ApiUrl,
+              };
+              var xmlResponse = await doRequest(options);
+          } catch (e) {
+              if(!obj.fallbackPlaySrc) {  // if we have no other ways to download --> error
+                term.red('\nCan\'t get current video XML-URL. Going to the next one.\n');
+                notDownloaded.push(videoUrl);
+                continue;
+              }
+          }
+
+          if(xmlResponse) {
+            const jsonObj = await xmlToJSON(xmlResponse, {})
+
+            const filename = jsonObj.HTML5Pipeline.RecordingXML[0].Screen[0].Sequence[0]._; // maybe there could be more resolutions here?
+
+            if (!filename.endsWith(".mp4")) {
+                term.red('\nCan\'t parse XML correctly. Going to the next one.\n');
+                notDownloaded.push(videoUrl);
+                continue;
+            }
+
+            mp4DirectDownloadUrl = 'https://nfg1vss.webex.com/apis/download.do?recordingDir=' + recordingDir + '&timestamp=' + timestamp + '&token=' + token + '&fileName=' + filename;
+            m3u8DownloadUrl = 'https://nfg1vss.webex.com/hls-vod/recordingDir/' + recordingDir + '/timestamp/' + timestamp + '/token/' + token + '/fileName/' + filename + '.m3u8'
+          }
         }
 
-        const jsonObj = await xmlToJSON(xmlResponse, {})
+        else if(obj.downloadRecordingInfo.downloadInfo.mp4URL) { // if download is originally enabled by video's owner. But in this case seems there is no .m3u8
+          mp4DirectDownloadUrl = obj.downloadRecordingInfo.downloadInfo.mp4URL
+        }
 
-        const filename = jsonObj.HTML5Pipeline.RecordingXML[0].Screen[0].Sequence[0]._; // maybe there could be more resolutions here?
-
-        if (!filename.endsWith(".mp4")) {
-            term.red('\nCan\'t parse XML correctly. Going to the next one.\n');
-            notDownloaded.push(videoUrl);
-            continue;
+        const mp4DirectDownloadUrl_slow = mp4DirectDownloadUrl
+        const mp4DirectDownloadUrl_fast = obj.fallbackPlaySrc     // new endpoint that can be (ab)used to download the video --> really fast if works, since WebEx itself provides Multithreading on this url
+        var directParams = {
+            mp4DirectDownloadUrl_slow: mp4DirectDownloadUrl_slow,
+            mp4DirectDownloadUrl_fast: mp4DirectDownloadUrl_fast,
+            title: title,
+            videoUrl: videoUrl,
         }
 
         if (argv.segmented === false) {
-            const mp4DirectDownloadUrl_slow = 'https://nfg1vss.webex.com/apis/download.do?recordingDir=' + recordingDir + '&timestamp=' + timestamp + '&token=' + token + '&fileName=' + filename;
-            const mp4DirectDownloadUrl_fast = obj.fallbackPlaySrc     // new endpoint that can be (ab)used to download the video --> really fast if works, since WebEx itself provides Multithreading on this url
-            var params = {
-                mp4DirectDownloadUrl_slow: mp4DirectDownloadUrl_slow,
-                mp4DirectDownloadUrl_fast: mp4DirectDownloadUrl_fast,
-                title: title,
-                videoUrl: videoUrl,
-            }
-            await directDownload(params);
+            await directDownload(directParams);
         } else {
-            const src = 'https://nfg1vss.webex.com/hls-vod/recordingDir/' + recordingDir + '/timestamp/' + timestamp + '/token/' + token + '/fileName/' + filename + '.m3u8'
-            var params = {
-                src: src,
-                title: title,
-                videoUrl: videoUrl,
-                videoID: videoID
+            if(m3u8DownloadUrl == '') {
+              term.yellow(`\nCan't download this video in segmented way. Switching to direct download!\n\n`)
+              await directDownload(directParams);
             }
-            await segmentedDownload(params);
+            else {
+              const src = m3u8DownloadUrl
+              var params = {
+                  src: src,
+                  title: title,
+                  videoUrl: videoUrl,
+                  videoID: videoID
+              }
+              await segmentedDownload(params);
+            }
         }
     }
 
