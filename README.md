@@ -52,8 +52,8 @@ Options:
   -v, --videoUrls                                                        [array]
   -f, --videoUrlsFile    Path to txt file containing the URLs (one URL for each line) [string]
   -p, --password                                                        [string]
-  -s, --segmented            Download video in a segmented way. Could be (a lot)
-                             faster on powerful PC with good download speed [boolean] [default: false]
+  -s, --segmented            Download video in a segmented way.
+                             Could be faster than direct download [boolean] [default: false]
   -o, --outputDirectory                             [string] [default: "videos"]
   -k, --noKeyring            Do not use system keyring [boolean] [default: false]
   -t, --noToastNotification  Disable toast notification [boolean] [default: false]
@@ -82,7 +82,7 @@ Replace saved password
 $ node poliwebex -p MYNEWPASSWORD -v "https://politecnicomilano.webex.com/webappng/sites/politecnicomilano/recording/play/VIDEO-1"
 ```
 
-Download the video in a segmented way. Could be (a lot) faster on powerful PC with good download speed
+Download the video in a segmented way. Could be faster than direct download
 ```
 $ node poliwebex  -v "https://politecnicomilano.webex.com/webappng/sites/politecnicomilano/recording/play/VIDEO-1" -s
 ```
