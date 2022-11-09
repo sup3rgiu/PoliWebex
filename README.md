@@ -9,8 +9,8 @@ GUI Version: https://github.com/yuyu-19/PoliDL-GUI
 ## Saves WebEx videos uploaded by Politecnico di Milano.
 
 Features:
- - ~~PoliMi autologin~~ Manual login is required due to the introduction of SPID. In a feature release we will switch to OAuth2 authentication and the login will be required only once
- - Multithreading download through aria2c
+ - Interactive SPID login (but the username and password are saved)
+ - Download entire courses with the webeep url (https://webeep.polimi.it/course/view.php?id=XXX)
 
 
 ## PREREQS
@@ -48,18 +48,18 @@ Show options:
 $ node poliwebex -h
 
 Options:
-  --version                  Show version number                       [boolean]
-  -v, --videoUrls                                                        [array]
-  -f, --videoUrlsFile    Path to txt file containing the URLs (one URL for each line) [string]
-  -p, --password                                                        [string]
-  -s, --segmented            Download video in a segmented way.
-                             Could be faster than direct download [boolean] [default: false]
-  -o, --outputDirectory                             [string] [default: "videos"]
-  -k, --noKeyring            Do not use system keyring [boolean] [default: false]
-  -t, --noToastNotification  Disable toast notification [boolean] [default: false]
-  -i, --timeout              Scale timeout by a factor X                [number]
-  -w, --videoPwd             Video Password               [string] [default: ""]
-  -h, --help                 Show help                                 [boolean]
+  --version                  Show version number                                      [boolean]
+  -v, --videoUrls                                                                     [array]
+  -f, --videoUrlsFile        Path to txt file containing the URLs (one URL per line)  [string]
+  -p, --SPIDpassword                                                                  [string]
+  -u, --SPIDusername                                                                  [string]
+  -o, --outputDirectory                                                               [string] [default: "videos"]
+  -e, --polimiEmail          In the format of name.surname@mail.polimi.it
+  -k, --noKeyring            Do not use system keyring                                [boolean] [default: false]
+  -t, --noToastNotification  Disable toast notification                               [boolean] [default: false]
+  -i, --timeout              Scale timeout by a factor X                              [number]
+  -w, --videoPwd             Default video password                                   [string] [default: ""]
+  -h, --help                 Show help                                                [boolean]
 ```
 
 Multiple videos download:
@@ -82,12 +82,7 @@ Replace saved password
 $ node poliwebex -p MYNEWPASSWORD -v "https://politecnicomilano.webex.com/webappng/sites/politecnicomilano/recording/play/VIDEO-1"
 ```
 
-Download the video in a segmented way. Could be faster than direct download
-```
-$ node poliwebex  -v "https://politecnicomilano.webex.com/webappng/sites/politecnicomilano/recording/play/VIDEO-1" -s
-```
-
-Download password-protected video
+Download password-protected video (could also omit the argument and input it manually)
 ```
 $ node poliwebex  -v "https://politecnicomilano.webex.com/webappng/sites/politecnicomilano/recording/play/VIDEO-1" -w PASSWORD
 ```
