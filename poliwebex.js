@@ -94,10 +94,8 @@ function sanityChecks() {
 }
 
 function readFileToArray(path) {
-    path = path.substr(1, path.length - 2);
-    if (process.platform === "win32") //check OS
-        return fs.readFileSync(path).toString('utf-8').split('\r\n'); //Windows procedure
-    return fs.readFileSync(path).toString('utf-8').split('\n'); //Bash procedure
+    path = path.replace(/^["'\[]+|["'\]]+$/g, '');
+    return fs.readFileSync(path, 'utf-8').split(/\r?\n/).map(s => s.trim()).filter(Boolean);
 }
 
 function parseVideoUrls(videoUrls) {
@@ -206,7 +204,7 @@ async function downloadVideo(videoUrls, password, outputDirectory, videoPwd) {
                 term.yellow('\nWrong password!/' + (obj.recordName).trim() + '\n');
             }
 
-            var pwd = await promptQuestion("Please insert the password (or 0 to skip this video): ");
+            var pwd = await promptPassword("Please insert the password (or 0 to skip this video): ");
             options.headers['accessPwd'] = pwd;
 
             if (pwd == 0) {
@@ -523,14 +521,14 @@ async function extractRecmanUrls(videoUrls) {
 
 async function extractRecordingsUrl(aunicalogin_url) {
     var page;
-    const webexUrls = []
+    const webexUrls = [];
     if (browser == null) {
         var credentials = await askForCredentials(argv.SPIDpassword);
-        await openBrowser()
+        await openBrowser();
         page = await login(credentials, browser);
-        await sleep(3000 * timeout)
-        const cookie = await extractCookies(page) // update WebEx cookies while we're at it.
-        await saveCookies(cookie)
+        await sleep(3000 * timeout);
+        const cookie = await extractCookies(page); // update WebEx cookies while we're at it.
+        await saveCookies(cookie);
     } else {
         page = (await browser.pages())[0];
     }
@@ -538,60 +536,80 @@ async function extractRecordingsUrl(aunicalogin_url) {
     term.yellow('\nExtracting WebEx recordings from ' + aunicalogin_url + '\nThis could take a while...\n');
 
     if ((new URL(aunicalogin_url)).host == 'webeep.polimi.it') {
-        aunicalogin_url = await getAunicaUrlFromWebeep(page, aunicalogin_url)
+        aunicalogin_url = await getAunicaUrlFromWebeep(page, aunicalogin_url);
         if (aunicalogin_url == null) { return webexUrls; }
     }
 
     await page.goto(aunicalogin_url, { waitUntil: 'networkidle2' });
 
-    try { await page.waitForNavigation({ timeout: 7000 * timeout }) } catch (e) { };
-    //await page.waitForNavigation();
-
-    const extractedText = await page.$eval('*', (el) => el.innerText);
-    //console.log(extractedText)
-    await sleep(1000)
-
-    const showAllRecordingsUrl = await page.evaluate(() => {
-        const urlArray = Array.from(document.links).map((link) => link.href);
-        console.log(urlArray + "\n");
-        return urlArray.find((link) => link.includes("action=plen_0"))
-    });
-
-    //term.red("Here's the URL: " + showAllRecordingsUrl)
-
-    await page.goto(showAllRecordingsUrl, { waitUntil: 'networkidle2' });
-
-    //await page.waitForNavigation();
-
-    await browser.waitForTarget(target => target.url().includes('recman_frontend'), {
+    const recmanTarget = await browser.waitForTarget(target => target.url().includes('recman_frontend'), {
         timeout: 90000
     });
 
-    let recordingsUrl = await page.evaluate(() => {
-        let elements = document.getElementsByClassName('TableDati-tbody')[0].getElementsByTagName('a');
-        const urlArray = Array.from(elements).map((link) => link.href);
-        const uniqueUrlArray = [...new Set(urlArray)];
-        return uniqueUrlArray
+    const recmanPage = (await recmanTarget.page()) || page;
+    await recmanPage.bringToFront().catch(() => {});
+    try { await recmanPage.waitForSelector("table, a", { timeout: 15000 }).catch(() => {}); } catch (e) {}
+
+    // Check if there is an action=plen_0 link to display all recordings on a single page
+    try {
+        const plen0 = await recmanPage.evaluate(() => {
+            const a = Array.from(document.querySelectorAll("a")).find(el => el.href && el.href.includes("action=plen_0"));
+            return a ? a.href : null;
+        });
+        if (plen0) {
+            term.cyan("Navigating to show ALL course recordings (plen_0)...\n");
+            await recmanPage.goto(plen0, { waitUntil: "networkidle2" });
+            await recmanPage.waitForSelector("table, a", { timeout: 15000 }).catch(() => {});
+        }
+    } catch (e) {}
+
+    let previewLinks = await recmanPage.evaluate(() => {
+        let elements = Array.from(document.querySelectorAll("a"));
+        let links = elements.map(el => el.href).filter(h => h && (
+            h.includes("evn_preview_link") || 
+            h.includes("RedirectToWebEx") || 
+            h.includes("webex.com")
+        ));
+        return [...new Set(links)];
     });
 
-    const ssl_jsessionid = await extractJSESSIONCookie(page)
+    term.green(`Found ${previewLinks.length} preview links on RecMan.\n`);
 
-    var options = {
-        headers: { 'Cookie': ssl_jsessionid, }
-    };
-
-    for (let recordingUrl of recordingsUrl) {
-        options.url = recordingUrl
+    for (let i = 0; i < previewLinks.length; i++) {
+        const link = previewLinks[i];
+        if (link.includes("webex.com")) {
+            webexUrls.push(link);
+            continue;
+        }
+        let tab = null;
         try {
-            var response = await doRequest(options)
-            const webexUrl = response.match(/location\.href='(.*?)';/)[1];
-            webexUrls.push(webexUrl)
+            tab = await browser.newPage();
+            await tab.goto(link, { waitUntil: "domcontentloaded", timeout: 30000 });
+            await tab.waitForFunction(() => window.location.href.includes("webex.com"), { timeout: 8000 }).catch(() => {});
+            const finalUrl = tab.url();
+            if (finalUrl.includes("webex.com")) {
+                term.gray(`[${i + 1}/${previewLinks.length}] Resolved: ${finalUrl}\n`);
+                webexUrls.push(finalUrl);
+            } else {
+                const html = await tab.content();
+                const m = html.match(/https:\/\/[^"'\s<>]*webex\.com\/[^"'\s<>]*/);
+                if (m) {
+                    term.gray(`[${i + 1}/${previewLinks.length}] Extracted: ${m[0]}\n`);
+                    webexUrls.push(m[0]);
+                } else {
+                    term.yellow(`[${i + 1}/${previewLinks.length}] Warning: could not resolve WebEx URL from preview link.\n`);
+                }
+            }
         } catch (e) {
-            // console.log(e)
+            term.red(`[${i + 1}/${previewLinks.length}] Failed resolving link: ${e.message}\n`);
+        } finally {
+            if (tab) {
+                await tab.close().catch(() => {});
+            }
         }
     }
 
-    return webexUrls
+    return webexUrls;
 }
 
 
@@ -710,18 +728,18 @@ async function extractCookies(page) {
 }
 
 async function extractJSESSIONCookie(page) {
-    var jar = await page.cookies("https://www11.ceda.polimi.it");
-    var sessionCookie = jar.filter(c => c.name === 'SSL_JSESSIONID')[0];
+    var jar = await page.cookies();
+    var sessionCookie = jar.find(c => c.name === 'SSL_JSESSIONID') || jar.find(c => c.name === 'JSESSIONID') || jar[0];
     if (sessionCookie == null) {
         await sleep(5000);
-        var jar = await page.cookies("https://www11.ceda.polimi.it");
-        var sessionCookie = jar.filter(c => c.name === 'SSL_JSESSIONID')[0];
+        var jar = await page.cookies();
+        var sessionCookie = jar.find(c => c.name === 'SSL_JSESSIONID') || jar.find(c => c.name === 'JSESSIONID') || jar[0];
     }
     if (sessionCookie == null) {
-        console.error('Unable to read session cookie. Try launching one more time, this is not an exact science.');
+        term.red('Unable to read session cookie. Try launching one more time, this is not an exact science.\n');
         process.exit(88);
     }
-    return `SSL_JSESSIONID=${sessionCookie.value}`;
+    return jar.map(c => `${c.name}=${c.value}`).join('; ');
 }
 
 
@@ -784,7 +802,7 @@ async function askForCredentials(password) {
                     password = result;
                 });
                 if (password === null) { // no previous password saved
-                    password = await promptQuestion("Password not saved. Please enter your SPID password, PoliWebex will not ask for it next time: ");
+                    password = await promptPassword("Password not saved. Please enter your SPID password, PoliWebex will not ask for it next time: ");
                     await keytar.setPassword("PoliWebexSPID", info.SPIDusername, password);
                     info.passwordSaved = true;
                     changed = true;
@@ -793,10 +811,10 @@ async function askForCredentials(password) {
                 }
             } catch (e) {
                 console.log("X11 is not installed on this system. PoliWebex can't use keytar to save the password.")
-                password = await promptQuestion("No problem, please manually enter your password: ");
+                password = await promptPassword("No problem, please manually enter your password: ");
             }
         } else {
-            password = await promptQuestion("Please enter your password: ");
+            password = await promptPassword("Please enter your password: ");
         }
     } else {
         if (argv.noKeyring === false) {
@@ -972,6 +990,16 @@ function promptQuestion(question) {
         };
         ask();
     });
+}
+
+async function promptPassword(question) {
+    if (process.stdin.isTTY) {
+        term(question);
+        const password = await term.inputField({ echoChar: '*' }).promise;
+        term('\n');
+        return password;
+    }
+    return await promptQuestion(question);
 }
 
 
