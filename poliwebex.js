@@ -78,9 +78,9 @@ function sanityChecks() {
     }
 
 
+    argv.outputDirectory = path.resolve(argv.outputDirectory);
     if (!fs.existsSync(argv.outputDirectory)) {
-        if (path.isAbsolute(argv.outputDirectory) || argv.outputDirectory[0] == '~') console.log('Creating output directory: ' + argv.outputDirectory);
-        else console.log('Creating output directory: ' + process.cwd() + path.sep + argv.outputDirectory);
+        console.log('Creating output directory: ' + argv.outputDirectory);
         try {
             fs.mkdirSync(argv.outputDirectory, {
                 recursive: true
@@ -487,8 +487,11 @@ async function directDownload(params) {
                 term.yellow('Switching to fallback download URL, slower...\n\n');
                 mp4DirectDownloadUrl = params.mp4DirectDownloadUrl_slow // fallback on slow url if the fast one doesn't work multiple times
             }
-            var aria2cCmd = 'aria2c -j 16 -x 16 -d "' + argv.outputDirectory + '" -c -o "' + fullTitle + '" "' + mp4DirectDownloadUrl + '"';
-            var result = execSync(aria2cCmd, { stdio: 'inherit' });
+            const aria2cArgs = ['-j', '16', '-x', '16', '-d', argv.outputDirectory, '-c', '-o', fullTitle, mp4DirectDownloadUrl];
+            const result = spawnSync('aria2c', aria2cArgs, { stdio: 'inherit' });
+            if (result.status !== 0) {
+                throw new Error(`aria2c failed with exit code ${result.status}`);
+            }
         } catch (e) {
             term.yellow('\n\nOops! We lost some video fragment! Trying one more time...\n\n');
             count++;
